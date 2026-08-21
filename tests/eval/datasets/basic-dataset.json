@@ -1,0 +1,25 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "samurai_directing",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Create a video generation prompt for a cyberpunk samurai standing under neon cherry blossoms in rain."}]
+      }
+    },
+    {
+      "eval_case_id": "drone_directing",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Direct a drone flight video soaring over misty mountains at twilight."}]
+      }
+    },
+    {
+      "eval_case_id": "retriever_directing",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Generate a video prompt for a golden retriever playing fetch in a sunlit meadow during golden hour."}]
+      }
+    }
+  ]
+}

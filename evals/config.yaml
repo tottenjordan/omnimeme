@@ -1,0 +1,7 @@
+name: omni_director_eval
+description: Evaluation suite for Gemini Omni Flash Video Directing Prompt Enhancements
+dataset: evals/dataset.jsonl
+metrics:
+  - name: taxonomy_compliance
+    type: llm_judge
+    criteria: "Check whether the output prompt includes Subject, Action & Motion, Camera Angle & Movement, and Lighting."

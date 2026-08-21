@@ -1,0 +1,51 @@
+[project]
+name = "omnimeme"
+version = "0.1.0"
+description = "ADK-based video directing agent for Gemini Omni Flash preview"
+requires-python = ">=3.11, <3.14"
+dependencies = [
+    "google-adk[gcp,otel-gcp]>=2.6.0,<3.0.0",
+    "google-cloud-aiplatform[adk,agent-engines,evaluation]>=1.156.0",
+    "google-genai>=2.19.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "opentelemetry-resourcedetector-gcp<=1.12.0a0",
+    "gcsfs>=2024.11.0",
+    "a2a-sdk[http-server]>=1.0,<2",
+    "aiohttp>=3.13.4",
+    "google-cloud-logging>=3.12.0,<4.0.0",
+    "protobuf>=6.31.1,<7.0.0",
+]
+
+
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+    "ty>=0.0.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501"]
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "--ignore=tests/load_test"
+
+
+
+[tool.ty.environment]
+python-version = "3.11"

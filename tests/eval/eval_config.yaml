@@ -1,0 +1,23 @@
+metrics_to_run:
+  - custom_response_quality
+  - taxonomy_compliance
+  - agent_turn_count
+
+custom_metrics:
+  - name: custom_response_quality
+    custom_function_file: response_quality.py
+  - name: taxonomy_compliance
+    custom_function: |
+      def evaluate(instance):
+          resp = str(instance.get("response", ""))
+          trace = str(instance.get("agent_data", ""))
+          text = resp + " " + trace
+          elements = ["[Subject]", "[Action & Motion]", "[Camera Angle & Movement]", "[Lighting & Atmosphere]"]
+          found = [el for el in elements if el in text]
+          score = len(found) / len(elements)
+          return {"score": score, "explanation": f"Found {len(found)}/{len(elements)} taxonomy headers: {found}"}
+  - name: agent_turn_count
+    custom_function: |
+      def evaluate(instance):
+          turns = (instance.get("agent_data") or {}).get("turns", [])
+          return {'score': len(turns)}

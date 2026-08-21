@@ -1,0 +1,2 @@
+{"input": "A cinematic shot of a samurai standing in cherry blossoms", "expected_elements": ["Subject", "Action", "Camera Angle", "Lighting", "Style"]}
+{"input": "Guided: Subject=Drone flight, Action=Soaring over mountains, Camera=FPV tilt up", "expected_elements": ["Subject", "Camera Angle & Movement", "Lighting & Atmosphere"]}
