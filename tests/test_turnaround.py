@@ -51,4 +51,3 @@ def test_build_turnaround_sheet_prompt_with_reference_image():
     cfg = generate_turnaround_sheet_config(char, reference_image_url=ref_url)
     assert cfg["reference_assets"][0]["uri"] == ref_url
     assert cfg["reference_assets"][0]["description"] == "Reference Character Photo (@Image1)"
-

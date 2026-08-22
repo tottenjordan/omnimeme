@@ -127,5 +127,3 @@ def test_gcs_proxy_and_turnaround_with_reference_image():
     assert resp.status_code == 200
     assert resp.json()["status"] == "success"
     assert "gs://bucket/ref_ninja.png" in resp.json()["turnaround_config"]["prompt"]
-
-

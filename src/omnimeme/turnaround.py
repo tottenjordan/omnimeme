@@ -11,14 +11,20 @@ def build_turnaround_sheet_prompt(
     reference_image_url: str | None = None,
 ) -> str:
     """Builds a standardized 4-panel turnaround sheet prompt to anchor character visual likeness."""
-    tags = ", ".join(character.aesthetic_tags) if character.aesthetic_tags else "photorealistic, studio lighting"
+    tags = (
+        ", ".join(character.aesthetic_tags)
+        if character.aesthetic_tags
+        else "photorealistic, studio lighting"
+    )
     style = f" in {style_preference} style" if style_preference else ""
     wardrobe = f", wearing {character.wardrobe}" if character.wardrobe else ""
 
     ref_anchor = reference_image_url or character.turnaround_sheet_url
     ref_header = ""
     if ref_anchor:
-        ref_header = f"### INPUT REFERENCE PHOTO\n@Image1: Reference Character Photo ({ref_anchor})\n\n"
+        ref_header = (
+            f"### INPUT REFERENCE PHOTO\n@Image1: Reference Character Photo ({ref_anchor})\n\n"
+        )
 
     return (
         f"{ref_header}"
@@ -41,11 +47,13 @@ def generate_turnaround_sheet_config(
 
     reference_assets = []
     if ref_anchor:
-        reference_assets.append({
-            "uri": ref_anchor,
-            "mime_type": "image/png",
-            "description": "Reference Character Photo (@Image1)",
-        })
+        reference_assets.append(
+            {
+                "uri": ref_anchor,
+                "mime_type": "image/png",
+                "description": "Reference Character Photo (@Image1)",
+            }
+        )
 
     return {
         "model": "gemini-3.1-flash-image",
@@ -58,4 +66,3 @@ def generate_turnaround_sheet_config(
         "character_role_id": character.role_id,
         "reference_assets": reference_assets,
     }
-

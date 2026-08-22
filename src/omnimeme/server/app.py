@@ -53,7 +53,6 @@ class TurnaroundApiRequest(BaseModel):
     style_preference: str = ""
 
 
-
 class GuidedApiRequest(BaseModel):
     subject: str
     action: str = ""
@@ -145,8 +144,14 @@ def generate_character_turnaround(role_id: str, req: TurnaroundApiRequest | None
     ref_url = req.reference_image_url if req else None
     style_pref = req.style_preference if req else ""
 
-    config = generate_turnaround_sheet_config(char, style_preference=style_pref, reference_image_url=ref_url)
-    sheet_url = ref_url or char.turnaround_sheet_url or f"gs://omnimeme-assets/turnarounds/{char.role_id}_sheet.png"
+    config = generate_turnaround_sheet_config(
+        char, style_preference=style_pref, reference_image_url=ref_url
+    )
+    sheet_url = (
+        ref_url
+        or char.turnaround_sheet_url
+        or f"gs://omnimeme-assets/turnarounds/{char.role_id}_sheet.png"
+    )
     char.turnaround_sheet_url = sheet_url
 
     return {
@@ -155,7 +160,6 @@ def generate_character_turnaround(role_id: str, req: TurnaroundApiRequest | None
         "turnaround_config": config,
         "generated_sheet_url": sheet_url,
     }
-
 
 
 @app.post("/api/guided/enhance")
@@ -251,4 +255,3 @@ def stream_freeform(req: FreeformApiRequest):
         character_role=char_role,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
-
