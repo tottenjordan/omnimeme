@@ -77,6 +77,7 @@ export default function App() {
     voice_style: string;
     wardrobe: string;
     image_role: string;
+    turnaround_sheet_url: string;
   }>({
     role_id: '',
     name: '',
@@ -84,8 +85,10 @@ export default function App() {
     aesthetic_tags: 'Cyberpunk, Cinematic',
     voice_style: 'Low bass, calm',
     wardrobe: 'Default outfit',
-    image_role: 'Main Subject'
+    image_role: 'Main Subject',
+    turnaround_sheet_url: ''
   });
+
 
   // Guided Experience State
   const [guidedInput, setGuidedInput] = useState<GuidedInput>({
@@ -192,6 +195,7 @@ export default function App() {
       voice_style: newChar.voice_style.trim(),
       wardrobe: newChar.wardrobe.trim(),
       image_role: newChar.image_role.trim(),
+      turnaround_sheet_url: newChar.turnaround_sheet_url.trim() || undefined,
       image_tag: '@Image1: Character Reference'
     };
 
@@ -210,8 +214,10 @@ export default function App() {
       aesthetic_tags: 'Cyberpunk, Cinematic',
       voice_style: 'Low bass, calm',
       wardrobe: 'Default outfit',
-      image_role: 'Main Subject'
+      image_role: 'Main Subject',
+      turnaround_sheet_url: ''
     });
+
   };
 
   const handleDeleteCharacter = async (roleId: string) => {
@@ -944,6 +950,17 @@ export default function App() {
                 />
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Reference Image / Turnaround Sheet GCS URI (Optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. gs://omnimeme-vault/turnarounds/character_sheet.png"
+                  value={newChar.turnaround_sheet_url}
+                  onChange={(e) => setNewChar({ ...newChar, turnaround_sheet_url: e.target.value })}
+                />
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Wardrobe Specs</label>
@@ -966,6 +983,7 @@ export default function App() {
                   />
                 </div>
               </div>
+
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
                 <button
