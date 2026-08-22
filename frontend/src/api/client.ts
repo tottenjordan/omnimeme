@@ -4,7 +4,20 @@ export interface MediaAttachment {
   description?: string;
 }
 
+export interface CharacterRole {
+  role_id: string;
+  name: string;
+  description: string;
+  turnaround_sheet_url?: string;
+  aesthetic_tags?: string[];
+  voice_style?: string;
+  wardrobe?: string;
+  image_role?: string;
+  image_tag?: string;
+}
+
 export interface GuidedInput {
+  character_role_id?: string;
   subject: string;
   action?: string;
   camera?: string;
@@ -18,6 +31,7 @@ export interface GuidedInput {
 }
 
 export interface FreeformInput {
+  character_role_id?: string;
   raw_prompt: string;
   director_style_preference?: string;
   reference_images?: MediaAttachment[];
@@ -157,4 +171,32 @@ export function streamFreeform(
   onError: (err: Error) => void
 ) {
   return handleStream(`${API_BASE}/freeform/stream`, data, onToken, onDone, onError);
+}
+
+export async function fetchVaultCharacters(): Promise<CharacterRole[]> {
+  const res = await fetch(`${API_BASE}/vault/characters`);
+  if (!res.ok) throw new Error('Failed to fetch character vault');
+  return res.json();
+}
+
+export async function createVaultCharacter(char: Partial<CharacterRole>): Promise<CharacterRole> {
+  const res = await fetch(`${API_BASE}/vault/characters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(char),
+  });
+  if (!res.ok) throw new Error('Failed to create character');
+  return res.json();
+}
+
+export async function deleteVaultCharacter(roleId: string): Promise<{ status: string }> {
+  const res = await fetch(`${API_BASE}/vault/characters/${roleId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete character');
+  return res.json();
+}
+
+export async function generateTurnaroundSheet(roleId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/vault/characters/${roleId}/turnaround`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to generate turnaround sheet');
+  return res.json();
 }
