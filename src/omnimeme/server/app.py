@@ -6,10 +6,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from omnimeme.agent import create_omni_director_agent
+from omnimeme.turnaround import generate_turnaround_sheet_config
 from omnimeme.ui.freeform_widget import FreeformInput, process_freeform_request
 from omnimeme.ui.guided_experience import GuidedPromptInput, MediaAttachment, process_guided_request
+from omnimeme.vault import CharacterRole, CharacterVault
 
 app = FastAPI(title="OmniMeme Video Directing Agent API", version="0.1.0")
+
+global_vault = CharacterVault()
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +37,17 @@ class MediaAttachmentModel(BaseModel):
     description: str = ""
 
 
+class CharacterRoleModel(BaseModel):
+    role_id: str
+    name: str
+    description: str
+    turnaround_sheet_url: str | None = None
+    aesthetic_tags: list[str] = []
+    voice_style: str = ""
+    wardrobe: str = ""
+    image_role: str = "Character Reference"
+
+
 class GuidedApiRequest(BaseModel):
     subject: str
     action: str = ""
@@ -44,6 +59,7 @@ class GuidedApiRequest(BaseModel):
     aspect_ratio: str = "16:9"
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
+    character_role_id: str | None = None
 
 
 class FreeformApiRequest(BaseModel):
@@ -51,6 +67,7 @@ class FreeformApiRequest(BaseModel):
     director_style_preference: str = ""
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
+    character_role_id: str | None = None
 
 
 def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAttachment]:
@@ -62,6 +79,53 @@ def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAt
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "OmniMeme Agent API"}
+
+
+@app.get("/api/vault/characters")
+def list_vault_characters():
+    return [c.to_dict() for c in global_vault.list_characters()]
+
+
+@app.post("/api/vault/characters")
+def add_vault_character(req: CharacterRoleModel):
+    char = CharacterRole(
+        role_id=req.role_id,
+        name=req.name,
+        description=req.description,
+        turnaround_sheet_url=req.turnaround_sheet_url,
+        aesthetic_tags=req.aesthetic_tags,
+        voice_style=req.voice_style,
+        wardrobe=req.wardrobe,
+        image_role=req.image_role,
+    )
+    global_vault.add_character(char)
+    return char.to_dict()
+
+
+@app.delete("/api/vault/characters/{role_id}")
+def delete_vault_character(role_id: str):
+    success = global_vault.delete_character(role_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Character not found")
+    return {"status": "success", "deleted_role_id": role_id}
+
+
+@app.post("/api/vault/characters/{role_id}/turnaround")
+def generate_character_turnaround(role_id: str):
+    char = global_vault.get_character(role_id)
+    if not char:
+        raise HTTPException(status_code=404, detail="Character not found in vault")
+
+    config = generate_turnaround_sheet_config(char)
+    sheet_url = f"gs://omnimeme-assets/turnarounds/{char.role_id}_sheet.png"
+    char.turnaround_sheet_url = sheet_url
+
+    return {
+        "status": "success",
+        "character": char.to_dict(),
+        "turnaround_config": config,
+        "generated_sheet_url": sheet_url,
+    }
 
 
 @app.post("/api/guided/enhance")
@@ -79,7 +143,8 @@ def enhance_guided(req: GuidedApiRequest):
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
-    res = process_guided_request(inp, agent)
+    char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
+    res = process_guided_request(inp, agent, character_role=char_role)
     if res["status"] == "error":
         raise HTTPException(status_code=400, detail=res["error_message"])
     return res
@@ -94,7 +159,8 @@ def enhance_freeform(req: FreeformApiRequest):
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
-    res = process_freeform_request(inp, agent)
+    char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
+    res = process_freeform_request(inp, agent, character_role=char_role)
     if res["status"] == "error":
         raise HTTPException(status_code=400, detail=res["error_message"])
     return res
@@ -120,6 +186,7 @@ def stream_guided(req: GuidedApiRequest):
     )
     raw_directive = inp.to_raw_directive()
     reference_assets = inp.get_all_reference_assets()
+    char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
 
     generator = agent.stream_run(
         user_prompt=raw_directive,
@@ -127,6 +194,7 @@ def stream_guided(req: GuidedApiRequest):
         duration_sec=req.duration_sec,
         aspect_ratio=req.aspect_ratio,
         reference_assets=reference_assets,
+        character_role=char_role,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 
@@ -144,10 +212,13 @@ def stream_freeform(req: FreeformApiRequest):
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
     reference_assets = inp.get_all_reference_assets()
+    char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
 
     generator = agent.stream_run(
         user_prompt=req.raw_prompt,
         director_notes=req.director_style_preference,
         reference_assets=reference_assets,
+        character_role=char_role,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
+

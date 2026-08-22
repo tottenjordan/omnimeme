@@ -26,7 +26,9 @@ class FreeformInput:
         return assets
 
 
-def process_freeform_request(input_data: FreeformInput, agent: OmniDirectorAgent) -> dict[str, Any]:
+def process_freeform_request(
+    input_data: FreeformInput, agent: OmniDirectorAgent, character_role: Any | None = None
+) -> dict[str, Any]:
     """Processes a raw free-form text input widget request through the ADK Omni Director agent."""
     if not input_data.validate():
         return {
@@ -40,6 +42,7 @@ def process_freeform_request(input_data: FreeformInput, agent: OmniDirectorAgent
         user_prompt=input_data.raw_prompt,
         director_notes=input_data.director_style_preference,
         reference_assets=reference_assets,
+        character_role=character_role,
     )
     return {
         "interface": "freeform_widget",

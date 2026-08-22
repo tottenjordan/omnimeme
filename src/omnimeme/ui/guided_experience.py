@@ -74,7 +74,7 @@ class GuidedPromptInput:
 
 
 def process_guided_request(
-    input_data: GuidedPromptInput, agent: OmniDirectorAgent
+    input_data: GuidedPromptInput, agent: OmniDirectorAgent, character_role: Any | None = None
 ) -> dict[str, Any]:
     """Processes a guided structured input form through the ADK Omni Director agent."""
     if not input_data.validate():
@@ -92,6 +92,7 @@ def process_guided_request(
         duration_sec=input_data.duration_sec,
         aspect_ratio=input_data.aspect_ratio,
         reference_assets=reference_assets,
+        character_role=character_role,
     )
     return {
         "interface": "guided_experience",

@@ -76,3 +76,32 @@ def test_stream_freeform_endpoint():
         assert "data:" in content
         assert "drone" in content.lower() or "subject" in content.lower()
         assert '"type": "done"' in content or '"type":"done"' in content
+
+
+def test_vault_character_crud_and_turnaround_endpoints():
+    char_payload = {
+        "role_id": "char_test_01",
+        "name": "Test Ninja",
+        "description": "Stealthy ninja in dark gi",
+        "aesthetic_tags": ["anime"],
+    }
+    # Create character
+    resp = client.post("/api/vault/characters", json=char_payload)
+    assert resp.status_code == 200
+    assert resp.json()["role_id"] == "char_test_01"
+
+    # List characters
+    resp = client.get("/api/vault/characters")
+    assert resp.status_code == 200
+    assert len(resp.json()) >= 1
+
+    # 1-Click Turnaround Generation Endpoint
+    resp = client.post("/api/vault/characters/char_test_01/turnaround")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    assert "4-panel view" in resp.json()["turnaround_config"]["prompt"]
+
+    # Delete character
+    resp = client.delete("/api/vault/characters/char_test_01")
+    assert resp.status_code == 200
+
