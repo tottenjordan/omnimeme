@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel
 
 from omnimeme.agent import create_omni_director_agent
@@ -122,7 +122,7 @@ def proxy_gcs_image(uri: str):
         raise HTTPException(status_code=400, detail="URI is required")
 
     if uri.startswith("http://") or uri.startswith("https://"):
-        return {"status": "redirect", "url": uri}
+        return RedirectResponse(url=uri)
 
     clean_name = uri.split("/")[-1]
     svg_thumbnail = f"""<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">

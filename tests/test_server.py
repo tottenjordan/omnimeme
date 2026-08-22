@@ -107,10 +107,17 @@ def test_vault_character_crud_and_turnaround_endpoints():
 
 
 def test_gcs_proxy_and_turnaround_with_reference_image():
-    # Test GCS proxy endpoint
+    # Test GCS proxy endpoint with gs:// URI
     resp = client.get("/api/gcs/proxy?uri=gs://bucket/photo.png")
     assert resp.status_code == 200
     assert resp.headers["content-type"] in ["image/svg+xml", "image/png"]
+
+    # Test GCS proxy endpoint with http(s):// URI (Redirect)
+    resp_http = client.get(
+        "/api/gcs/proxy?uri=https://example.com/photo.jpg", follow_redirects=False
+    )
+    assert resp_http.status_code == 307
+    assert resp_http.headers["location"] == "https://example.com/photo.jpg"
 
     # Test Turnaround generation with custom reference_image_url
     char_payload = {
