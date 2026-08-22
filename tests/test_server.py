@@ -150,6 +150,13 @@ def test_video_execution_endpoints_and_static_files():
     assert resp.json()["status"] == "completed"
     assert resp.json()["video_url"].startswith("/static/rendered/")
 
+    # Test POST /api/generate-video/stream (SSE streaming)
+    stream_resp = client.post("/api/generate-video/stream", json=config_payload)
+    assert stream_resp.status_code == 200
+    assert "text/event-stream" in stream_resp.headers["content-type"]
+    assert "data:" in stream_resp.text
+    assert "completed" in stream_resp.text
+
     # Test static file mounting
     static_url = resp.json()["video_url"]
     static_resp = client.get(static_url)

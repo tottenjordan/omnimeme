@@ -61,7 +61,7 @@ const SAMPLE_CHARACTERS: CharacterRole[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'guided' | 'freeform'>('guided');
+  const [activeTab, setActiveTab] = useState<'guided' | 'freeform' | 'screening'>('guided');
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -576,7 +576,18 @@ export default function App() {
           <FileText size={16} />
           Free-form Text Widget
         </button>
+        <button
+          className={`tab-button ${activeTab === 'screening' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('screening');
+            setError(null);
+          }}
+        >
+          <Film size={16} color="#10b981" />
+          🎬 The Screening Room
+        </button>
       </div>
+
 
       {/* Main Content Grid */}
       <div className="main-grid">
