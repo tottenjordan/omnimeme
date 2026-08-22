@@ -27,7 +27,8 @@ COPY ./src ./src
 COPY ./static ./static
 
 
-RUN uv sync --frozen
+RUN pip install --no-cache-dir .
+
 
 ARG AGENT_VERSION=0.0.0
 ENV AGENT_VERSION=${AGENT_VERSION}
