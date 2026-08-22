@@ -67,7 +67,8 @@ jobs:
         with:
           install_components: 'beta'
       - name: Install dependencies
-        run: uv sync --locked
+        run: rm -f uv.lock && uv sync
+
 
       - name: Deploy to Production (Agent Runtime)
         run: |
