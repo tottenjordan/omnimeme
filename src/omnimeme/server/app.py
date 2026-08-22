@@ -1,11 +1,14 @@
-"""FastAPI Backend Server for OmniMeme Video Directing Agent."""
+import os
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from omnimeme.agent import create_omni_director_agent
+from omnimeme.engine import OmniFlashExecutionEngine
 from omnimeme.turnaround import generate_turnaround_sheet_config
 from omnimeme.ui.freeform_widget import FreeformInput, process_freeform_request
 from omnimeme.ui.guided_experience import GuidedPromptInput, MediaAttachment, process_guided_request
@@ -13,7 +16,11 @@ from omnimeme.vault import CharacterRole, CharacterVault
 
 app = FastAPI(title="OmniMeme Video Directing Agent API", version="0.1.0")
 
+os.makedirs("static/rendered", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 global_vault = CharacterVault()
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -255,3 +262,23 @@ def stream_freeform(req: FreeformApiRequest):
         character_role=char_role,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+class VideoExecutionRequest(BaseModel):
+    video_config: dict[str, Any]
+    session_name: str = ""
+
+
+@app.post("/api/generate-video")
+def generate_video(req: VideoExecutionRequest):
+    engine = OmniFlashExecutionEngine(mock_mode=True)
+    result = engine.generate_video(req.video_config)
+    return result.to_dict()
+
+
+@app.post("/api/generate-video/stream")
+def stream_generate_video(req: VideoExecutionRequest):
+    engine = OmniFlashExecutionEngine(mock_mode=True)
+    generator = engine.stream_generate_video(req.video_config)
+    return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
+

@@ -134,3 +134,24 @@ def test_gcs_proxy_and_turnaround_with_reference_image():
     assert resp.status_code == 200
     assert resp.json()["status"] == "success"
     assert "gs://bucket/ref_ninja.png" in resp.json()["turnaround_config"]["prompt"]
+
+
+def test_video_execution_endpoints_and_static_files():
+    config_payload = {
+        "video_config": {
+            "model": "gemini-omni-flash-preview",
+            "prompt": "Cyberpunk runner in neon rain",
+            "parameters": {"duration_seconds": 3, "aspect_ratio": "16:9"},
+        }
+    }
+    # Test POST /api/generate-video
+    resp = client.post("/api/generate-video", json=config_payload)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "completed"
+    assert resp.json()["video_url"].startswith("/static/rendered/")
+
+    # Test static file mounting
+    static_url = resp.json()["video_url"]
+    static_resp = client.get(static_url)
+    assert static_resp.status_code in [200, 206]
+
