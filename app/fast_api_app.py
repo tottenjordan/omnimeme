@@ -82,6 +82,14 @@ app.description = "API for interacting with the Agent omnimeme"
 # talk to this agent alongside the native adk_api routes.
 attach_reasoning_engine_routes(app)
 
+from fastapi.staticfiles import StaticFiles
+from omnimeme.server.app import app as omnimeme_app
+
+os.makedirs("static/rendered", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+app.include_router(omnimeme_app.router)
+
+
 
 # Main execution
 if __name__ == "__main__":

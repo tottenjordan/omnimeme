@@ -12,3 +12,7 @@ format:
 
 test:
 	uv run pytest
+
+deploy:
+	./scripts/deploy.sh
+
