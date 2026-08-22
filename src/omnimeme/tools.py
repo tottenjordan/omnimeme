@@ -3,17 +3,31 @@
 from typing import Any
 
 
-def enhance_video_prompt(raw_prompt: str, director_notes: str = "") -> dict[str, str]:
+def enhance_video_prompt(
+    raw_prompt: str,
+    director_notes: str = "",
+    character_role: Any | None = None,
+) -> dict[str, str]:
     """Enhances a raw user prompt with Omni Flash video directing best practices.
 
     Args:
         raw_prompt: The user's initial video concept.
         director_notes: Optional additional style or camera guidance.
+        character_role: Optional character role configuration or reference.
     """
     subject = raw_prompt.strip()
     notes = f" ({director_notes.strip()})" if director_notes.strip() else ""
 
+    role_header = ""
+    if character_role and hasattr(character_role, "image_tag"):
+        role_header = (
+            f"### INPUT ROLES & REFERENCES\n"
+            f"{character_role.image_tag}: {character_role.description}\n"
+            f"Turnaround Reference: {character_role.turnaround_sheet_url or 'Generated Sheet'}\n\n"
+        )
+
     enhanced = (
+        f"{role_header}"
         f"[Subject]: {subject}{notes}\n"
         f"[Action & Motion]: Fluid continuous motion, steady temporal pacing.\n"
         f"[Camera Angle & Movement]: 35mm lens, smooth steadycam tracking shot at eye level.\n"
@@ -27,9 +41,13 @@ def enhance_video_prompt(raw_prompt: str, director_notes: str = "") -> dict[str,
     }
 
 
-def stream_enhance_video_prompt(raw_prompt: str, director_notes: str = ""):
+def stream_enhance_video_prompt(
+    raw_prompt: str,
+    director_notes: str = "",
+    character_role: Any | None = None,
+):
     """Yields streaming chunks for enhanced prompt taxonomy."""
-    res = enhance_video_prompt(raw_prompt, director_notes)
+    res = enhance_video_prompt(raw_prompt, director_notes, character_role=character_role)
     text = res["enhanced_prompt"]
     # Chunk by lines to provide natural streaming animation
     lines = text.split("\n")

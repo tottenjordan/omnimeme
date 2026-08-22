@@ -30,8 +30,21 @@ class OmniDirectorAgent:
         duration_sec: int = 5,
         aspect_ratio: str = "16:9",
         reference_assets: list[dict[str, Any]] | None = None,
+        character_role: Any | None = None,
     ) -> dict[str, Any]:
-        enhanced = enhance_video_prompt(user_prompt, director_notes)
+        if character_role and getattr(character_role, "turnaround_sheet_url", None):
+            ref_asset = {
+                "uri": character_role.turnaround_sheet_url,
+                "mime_type": "image/png",
+                "description": f"{character_role.name} Turnaround Sheet (@Image1)",
+            }
+            if reference_assets is None:
+                reference_assets = []
+            else:
+                reference_assets = list(reference_assets)
+            reference_assets.append(ref_asset)
+
+        enhanced = enhance_video_prompt(user_prompt, director_notes, character_role=character_role)
         config = generate_video_config(
             enhanced["enhanced_prompt"],
             duration_sec=duration_sec,
@@ -52,14 +65,29 @@ class OmniDirectorAgent:
         duration_sec: int = 5,
         aspect_ratio: str = "16:9",
         reference_assets: list[dict[str, Any]] | None = None,
+        character_role: Any | None = None,
     ):
         """Yields SSE events for token streaming and final result payload."""
         import json
 
         from omnimeme.tools import stream_enhance_video_prompt
 
+        if character_role and getattr(character_role, "turnaround_sheet_url", None):
+            ref_asset = {
+                "uri": character_role.turnaround_sheet_url,
+                "mime_type": "image/png",
+                "description": f"{character_role.name} Turnaround Sheet (@Image1)",
+            }
+            if reference_assets is None:
+                reference_assets = []
+            else:
+                reference_assets = list(reference_assets)
+            reference_assets.append(ref_asset)
+
         accumulated = []
-        for chunk in stream_enhance_video_prompt(user_prompt, director_notes):
+        for chunk in stream_enhance_video_prompt(
+            user_prompt, director_notes, character_role=character_role
+        ):
             accumulated.append(chunk)
             token_event = {"type": "token", "chunk": chunk}
             yield f"data: {json.dumps(token_event)}\n\n"

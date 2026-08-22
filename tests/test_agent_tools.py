@@ -41,3 +41,42 @@ def test_generate_video_config_tool_with_reference_assets():
     )
     assert cfg["reference_assets"] == assets
     assert len(cfg["reference_assets"]) == 2
+
+
+def test_enhance_video_prompt_with_character_role():
+    from omnimeme.vault import CharacterRole
+
+    char = CharacterRole(
+        role_id="char_samurai_01",
+        name="Cyber Samurai",
+        description="Obsidian armor samurai",
+        turnaround_sheet_url="gs://bucket/samurai_turnaround.png",
+    )
+    res = enhance_video_prompt(
+        raw_prompt="Samurai walking in rain",
+        character_role=char,
+    )
+    assert "@Image1: Character Reference - Cyber Samurai" in res["enhanced_prompt"]
+    assert "Obsidian armor samurai" in res["enhanced_prompt"]
+
+
+def test_omni_director_agent_run_with_character_role():
+    from omnimeme.vault import CharacterRole
+
+    char = CharacterRole(
+        role_id="char_samurai_01",
+        name="Cyber Samurai",
+        description="Obsidian armor samurai",
+        turnaround_sheet_url="gs://bucket/samurai_turnaround.png",
+    )
+    agent = create_omni_director_agent()
+    res = agent.run(user_prompt="Samurai walking in rain", character_role=char)
+
+    assert "@Image1: Character Reference - Cyber Samurai" in res["enhanced_prompt"]
+    assert "video_config" in res
+    assert "reference_assets" in res["video_config"]
+    assert res["video_config"]["reference_assets"][0] == {
+        "uri": "gs://bucket/samurai_turnaround.png",
+        "mime_type": "image/png",
+        "description": "Cyber Samurai Turnaround Sheet (@Image1)",
+    }
