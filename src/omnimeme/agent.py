@@ -29,10 +29,14 @@ class OmniDirectorAgent:
         director_notes: str = "",
         duration_sec: int = 5,
         aspect_ratio: str = "16:9",
+        reference_assets: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         enhanced = enhance_video_prompt(user_prompt, director_notes)
         config = generate_video_config(
-            enhanced["enhanced_prompt"], duration_sec=duration_sec, aspect_ratio=aspect_ratio
+            enhanced["enhanced_prompt"],
+            duration_sec=duration_sec,
+            aspect_ratio=aspect_ratio,
+            reference_assets=reference_assets,
         )
         return {
             "agent_name": self.name,
@@ -47,6 +51,7 @@ class OmniDirectorAgent:
         director_notes: str = "",
         duration_sec: int = 5,
         aspect_ratio: str = "16:9",
+        reference_assets: list[dict[str, Any]] | None = None,
     ):
         """Yields SSE events for token streaming and final result payload."""
         import json
@@ -61,7 +66,10 @@ class OmniDirectorAgent:
 
         full_prompt = "".join(accumulated)
         config = generate_video_config(
-            full_prompt, duration_sec=duration_sec, aspect_ratio=aspect_ratio
+            full_prompt,
+            duration_sec=duration_sec,
+            aspect_ratio=aspect_ratio,
+            reference_assets=reference_assets,
         )
         done_event = {
             "type": "done",

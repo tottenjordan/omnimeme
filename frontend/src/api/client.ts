@@ -1,3 +1,9 @@
+export interface MediaAttachment {
+  uri: string;
+  mime_type: string;
+  description?: string;
+}
+
 export interface GuidedInput {
   subject: string;
   action?: string;
@@ -7,11 +13,15 @@ export interface GuidedInput {
   audio?: string;
   duration_sec?: number;
   aspect_ratio?: string;
+  reference_images?: MediaAttachment[];
+  reference_videos?: MediaAttachment[];
 }
 
 export interface FreeformInput {
   raw_prompt: string;
   director_style_preference?: string;
+  reference_images?: MediaAttachment[];
+  reference_videos?: MediaAttachment[];
 }
 
 export interface VideoConfig {
@@ -22,6 +32,7 @@ export interface VideoConfig {
     aspect_ratio: string;
     fps: number;
   };
+  reference_assets?: MediaAttachment[];
 }
 
 export interface DirectingResponse {
@@ -144,4 +155,3 @@ export function streamFreeform(
 ) {
   return handleStream(`${API_BASE}/freeform/stream`, data, onToken, onDone, onError);
 }
-

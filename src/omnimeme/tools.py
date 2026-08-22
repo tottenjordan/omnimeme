@@ -42,6 +42,7 @@ def generate_video_config(
     enhanced_prompt: str,
     duration_sec: int = 5,
     aspect_ratio: str = "16:9",
+    reference_assets: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Generates the API configuration payload for Gemini Omni Flash video generation.
 
@@ -49,8 +50,9 @@ def generate_video_config(
         enhanced_prompt: The fully direct-engineered prompt string.
         duration_sec: Duration in seconds (1-10).
         aspect_ratio: Video aspect ratio ('16:9', '9:16', '1:1').
+        reference_assets: Optional list of reference images/videos.
     """
-    return {
+    payload: dict[str, Any] = {
         "model": "gemini-omni-flash-preview",
         "prompt": enhanced_prompt,
         "parameters": {
@@ -59,3 +61,6 @@ def generate_video_config(
             "fps": 24,
         },
     }
+    if reference_assets:
+        payload["reference_assets"] = reference_assets
+    return payload

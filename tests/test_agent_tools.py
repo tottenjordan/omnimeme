@@ -26,3 +26,18 @@ def test_generate_video_config_tool():
 def test_omni_director_agent_creation():
     agent = create_omni_director_agent()
     assert agent.name == "omni_director"
+
+
+def test_generate_video_config_tool_with_reference_assets():
+    assets = [
+        {"uri": "gs://bucket/frame.png", "mime_type": "image/png", "description": "Keyframe"},
+        {"uri": "gs://bucket/motion.mp4", "mime_type": "video/mp4", "description": "Camera Motion"},
+    ]
+    cfg = generate_video_config(
+        enhanced_prompt="Cinematic drone flight",
+        duration_sec=7,
+        aspect_ratio="16:9",
+        reference_assets=assets,
+    )
+    assert cfg["reference_assets"] == assets
+    assert len(cfg["reference_assets"]) == 2

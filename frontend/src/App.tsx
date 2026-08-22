@@ -9,15 +9,18 @@ import {
   AlertCircle,
   Copy,
   Check,
-  Play
+  Play,
+  Image,
+  Film,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import {
   checkHealth,
-  enhanceGuided,
-  enhanceFreeform,
   GuidedInput,
   FreeformInput,
-  DirectingResponse
+  DirectingResponse,
+  MediaAttachment
 } from './api/client';
 
 export default function App() {
@@ -37,14 +40,24 @@ export default function App() {
     style: 'Photorealistic, cinematic film grain, dark fantasy thriller',
     audio: 'Ambient synth drone, gentle rain patter, metallic unsheathing sound',
     duration_sec: 5,
-    aspect_ratio: '16:9'
+    aspect_ratio: '16:9',
+    reference_images: [],
+    reference_videos: []
   });
 
   // Free-form State
   const [freeformInput, setFreeformInput] = useState<FreeformInput>({
     raw_prompt: 'A golden retriever wearing aviator sunglasses riding a skateboard down a sunlit hill',
-    director_style_preference: 'Upbeat commercial 4K high speed video'
+    director_style_preference: 'Upbeat commercial 4K high speed video',
+    reference_images: [],
+    reference_videos: []
   });
+
+  // Temporary input state for attachments
+  const [newImageUri, setNewImageUri] = useState('');
+  const [newImageDesc, setNewImageDesc] = useState('');
+  const [newVideoUri, setNewVideoUri] = useState('');
+  const [newVideoDesc, setNewVideoDesc] = useState('');
 
   useEffect(() => {
     checkHealth()
@@ -53,6 +66,51 @@ export default function App() {
   }, []);
 
   const [streamingText, setStreamingText] = useState<string>('');
+
+  const addGuidedImage = () => {
+    if (!newImageUri.trim()) return;
+    const attachment: MediaAttachment = {
+      uri: newImageUri.trim(),
+      mime_type: newImageUri.endsWith('.png') ? 'image/png' : 'image/jpeg',
+      description: newImageDesc.trim() || 'Style Reference'
+    };
+    setGuidedInput({
+      ...guidedInput,
+      reference_images: [...(guidedInput.reference_images || []), attachment]
+    });
+    setNewImageUri('');
+    setNewImageDesc('');
+  };
+
+  const addGuidedVideo = () => {
+    if (!newVideoUri.trim()) return;
+    const attachment: MediaAttachment = {
+      uri: newVideoUri.trim(),
+      mime_type: 'video/mp4',
+      description: newVideoDesc.trim() || 'Motion Reference'
+    };
+    setGuidedInput({
+      ...guidedInput,
+      reference_videos: [...(guidedInput.reference_videos || []), attachment]
+    });
+    setNewVideoUri('');
+    setNewVideoDesc('');
+  };
+
+  const addFreeformImage = () => {
+    if (!newImageUri.trim()) return;
+    const attachment: MediaAttachment = {
+      uri: newImageUri.trim(),
+      mime_type: newImageUri.endsWith('.png') ? 'image/png' : 'image/jpeg',
+      description: newImageDesc.trim() || 'Concept Art'
+    };
+    setFreeformInput({
+      ...freeformInput,
+      reference_images: [...(freeformInput.reference_images || []), attachment]
+    });
+    setNewImageUri('');
+    setNewImageDesc('');
+  };
 
   const handleGuidedSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +169,6 @@ export default function App() {
       );
     });
   };
-
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -236,27 +293,57 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label className="form-label">Aesthetic Style & Stock</label>
+              {/* Multimodal Media Attachments */}
+              <div className="form-group" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Image size={15} color="#60a5fa" />
+                  Multimodal Reference Image / Video Attachments (.png, .jpg, .mp4)
+                </label>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                   <input
                     type="text"
                     className="form-input"
-                    value={guidedInput.style}
-                    onChange={(e) => setGuidedInput({ ...guidedInput, style: e.target.value })}
-                    placeholder="e.g. Photorealistic 35mm film grain"
+                    value={newImageUri}
+                    onChange={(e) => setNewImageUri(e.target.value)}
+                    placeholder="Reference URI (e.g. gs://bucket/ref.jpg or https://...)"
+                    style={{ flex: 2 }}
                   />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Audio & Voiceover Cues</label>
                   <input
                     type="text"
                     className="form-input"
-                    value={guidedInput.audio}
-                    onChange={(e) => setGuidedInput({ ...guidedInput, audio: e.target.value })}
-                    placeholder="e.g. Ambient wind and synth swell"
+                    value={newImageDesc}
+                    onChange={(e) => setNewImageDesc(e.target.value)}
+                    placeholder="Description / Role"
+                    style={{ flex: 1 }}
                   />
+                  <button
+                    type="button"
+                    onClick={addGuidedImage}
+                    style={{ background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Plus size={16} /> Add Image
+                  </button>
                 </div>
+
+                {guidedInput.reference_images && guidedInput.reference_images.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                    {guidedInput.reference_images.map((img, idx) => (
+                      <div key={idx} style={{ background: 'rgba(59, 130, 246, 0.15)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', color: '#93c5fd', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Image size={12} />
+                        <span>{img.description}: {img.uri}</span>
+                        <Trash2
+                          size={12}
+                          style={{ cursor: 'pointer', color: '#f87171' }}
+                          onClick={() => {
+                            const updated = guidedInput.reference_images?.filter((_, i) => i !== idx);
+                            setGuidedInput({ ...guidedInput, reference_images: updated });
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="form-row">
@@ -312,6 +399,40 @@ export default function App() {
                   onChange={(e) => setFreeformInput({ ...freeformInput, director_style_preference: e.target.value })}
                   placeholder="e.g. Cinematic IMAX, high contrast, slow motion"
                 />
+              </div>
+
+              {/* Multimodal Attachments for Freeform */}
+              <div className="form-group" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Film size={15} color="#a78bfa" />
+                  Multimodal Concept Art & Motion Attachments (.png, .jpg, .mp4)
+                </label>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newImageUri}
+                    onChange={(e) => setNewImageUri(e.target.value)}
+                    placeholder="Media URI (e.g. gs://bucket/reference.png)"
+                    style={{ flex: 2 }}
+                  />
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newImageDesc}
+                    onChange={(e) => setNewImageDesc(e.target.value)}
+                    placeholder="Concept Label"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={addFreeformImage}
+                    style={{ background: '#a78bfa', color: '#fff', border: 'none', borderRadius: '6px', padding: '0 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Plus size={16} /> Attach Media
+                  </button>
+                </div>
               </div>
 
               <button type="submit" className="btn-primary" disabled={loading}>
@@ -389,7 +510,6 @@ export default function App() {
               </div>
             </div>
           ) : (
-
             <div className="empty-state">
               <Play size={40} color="#4b5563" />
               <p style={{ fontSize: '15px', color: 'var(--text-muted)' }}>
