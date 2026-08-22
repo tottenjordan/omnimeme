@@ -42,7 +42,28 @@ The system features an **OmniFlash Execution Engine** with procedural audio stem
 
 ---
 
+## 🖥️ Studio UI User Journey
+
+### Step 1: Guided Experience Prompt Generator
+Direct camera angles, lenses, atmospheric lighting, audio genres, duration, and aspect ratio via structured controls.
+![Step 1: Guided Experience UI](ui_journey_1_guided_experience.jpg)
+
+### Step 2: Character Vault & Model Sheet Generator
+Manage character profiles with hot-loaded GCS reference image previews and generate 4-panel turnaround model sheets in 1 click.
+![Step 2: Character Vault UI](ui_journey_2_character_vault.jpg)
+
+### Step 3: Free-form Directing & 6-Part Taxonomy Expansion
+Input natural language text prompts, apply director style presets, and preview real-time 6-part taxonomy expansions and JSON payloads.
+![Step 3: Free-form Directing UI](ui_journey_3_freeform_directing.jpg)
+
+### Step 4: The Screening Room & MP4 Video Export
+Screen rendered 720p H.264 MP4 videos with native HTML5 playback, dynamic audio spectrum visualizer, SynthID C2PA verification badges, and 1-click MP4 export.
+![Step 4: The Screening Room UI](ui_journey_4_screening_room.jpg)
+
+---
+
 ## 🏗️ Tech Stack
+
 
 | Layer | Component / Technology | Version | Purpose |
 | :--- | :--- | :--- | :--- |
