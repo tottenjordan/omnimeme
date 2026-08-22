@@ -87,7 +87,15 @@ from omnimeme.server.app import app as omnimeme_app
 
 os.makedirs("static/rendered", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+if os.path.exists("frontend/dist"):
+    app.mount("/studio", StaticFiles(directory="frontend/dist", html=True), name="studio")
+    if os.path.exists("frontend/dist/assets"):
+        app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+
+
 app.include_router(omnimeme_app.router)
+
 
 
 

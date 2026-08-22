@@ -10,17 +10,35 @@
 
 ## 📝 Description
 
-OmniMeme is an ADK-based agentic video directing studio in Python and React designed to assist creators in direct-engineering cinematic prompts for **Gemini Omni Flash preview**. Powered by Google's latest **Agent Development Kit (`google-adk==2.7.1`)** and `agentplatform.Client()`, it expands raw user ideas into a precise 6-part video directing taxonomy covering camera dynamics, motion pacing, atmospheric lighting, aesthetic styles, and audio timing. The system bridges non-technical creative vision with production-ready Gemini Enterprise Agent Platform API execution payloads through a FastAPI REST backend and a modern React studio web interface.
+OmniMeme is an ADK-based agentic video directing studio in Python and React designed to assist creators in direct-engineering cinematic prompts for **Gemini Omni Flash preview**. Powered by Google's latest **Agent Development Kit (`google-adk==2.7.1`)** and `agentplatform.Client()`, it expands raw user ideas into a precise 6-part video directing taxonomy covering camera dynamics, motion pacing, atmospheric lighting, aesthetic styles, and audio timing.
+
+The system features an **OmniFlash Execution Engine** with procedural audio stem synthesis, **Responsible AI policy guardrails**, **Character Vault** for 4-panel model sheets with GCS image proxy hot-loading, and **The Screening Room** React viewer with SynthID C2PA verification and MP4 export.
+
+---
+
+## 🏛️ System Architecture & Visualizations
+
+### 1. End-to-End System Architecture
+![OmniMeme System Architecture](omnimeme_system_architecture_1787430782636.jpg)
+
+### 2. Character Turnaround & GCS Reference Hot-Loading Workflow
+![Character Turnaround & GCS Hot-Loading Workflow](character_turnaround_gcs_workflow_1787430795108.jpg)
+
+### 3. Gemini Omni Flash Video Execution Engine & Safety Guardrail Pipeline
+![Video Execution Engine Pipeline](video_execution_engine_pipeline_1787430813127.jpg)
 
 ---
 
 ## ✨ Key Features
 
 - **🎬 6-Part Directing Taxonomy Expansion**: Transforms simple text prompts into structured visual directives (`[Subject]`, `[Action & Motion]`, `[Camera Angle & Movement]`, `[Lighting & Atmosphere]`, `[Style & Aesthetics]`, `[Audio Cues]`).
-- **🎛️ Guided Experience Builder**: Interactive form builder allowing creators to dial in camera lenses, movement trajectories, lighting conditions, aspect ratios (`16:9`, `9:16`, `1:1`), and duration pacing.
-- **💬 Free-form Text Widget**: Natural language text area enhanced in real-time by the ADK Video Directing Agent (`OmniDirectorAgent`).
-- **⚙️ Gemini Enterprise Payload Spec Generator**: Automatically formats production-ready JSON configurations tailored for Gemini Omni Flash preview video generation endpoints.
-- **🚀 Modern Full-Stack Architecture**: Python backend powered by `uv`, `fastapi`, and `agentplatform.Client()`, coupled with a React 18 + Vite + TypeScript frontend.
+- **👤 Character Vault & Model Sheet Generator**: Store character profiles and generate 4-panel orthographic model turnaround sheets (front, profile, 3/4, back) using Gemini 3.1 Flash Image.
+- **🖼️ GCS Reference Image Hot-Loading**: Enter any `gs://` bucket URI for a reference photo and preview hot-loaded SVG/PNG thumbnails instantly via the `/api/gcs/proxy` endpoint.
+- **⚡ OmniFlash Video Execution Engine**: Connects Gemini Omni Flash JSON configurations directly to dynamic video execution, procedural 44.1kHz audio stem synthesis (cyberpunk, drill, anime, boombap), and FFmpeg 720p H.264 MP4 rendering.
+- **🛡️ Responsible AI Guardrail Gateway**: Parses policy errors (`parse_guardrail_error_guidance`) for real names/likenesses and suggests automatic prompt sanitization.
+- **🎬 The Screening Room UI**: HTML5 video viewer with **`🛡️ SynthID C2PA Verified`** watermark badge, video metadata display, 1-click execution, and MP4 download export.
+- **🌐 Dual Cloud Deployment**: Live on **Cloud Run** (`https://omnimeme-934903580331.us-central1.run.app`) and registered with **Gemini Enterprise Agent Registry**.
+
 
 ---
 

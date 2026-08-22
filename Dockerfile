@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/frontend
+COPY ./frontend/package*.json ./
+RUN npm install
+COPY ./frontend ./
+RUN npm run build
+
 FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
@@ -25,10 +32,9 @@ COPY ./pyproject.toml ./README.md ./uv.lock* ./
 COPY ./app ./app
 COPY ./src ./src
 COPY ./static ./static
-
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 RUN pip install --no-cache-dir .
-
 
 ARG AGENT_VERSION=0.0.0
 ENV AGENT_VERSION=${AGENT_VERSION}
@@ -36,4 +42,5 @@ ENV AGENT_VERSION=${AGENT_VERSION}
 EXPOSE 8080
 
 CMD ["sh", "-c", "uvicorn app.fast_api_app:app --host 0.0.0.0 --port ${PORT:-8080}"]
+
 
