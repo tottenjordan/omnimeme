@@ -281,4 +281,3 @@ def stream_generate_video(req: VideoExecutionRequest):
     engine = OmniFlashExecutionEngine(mock_mode=True)
     generator = engine.stream_generate_video(req.video_config)
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
-

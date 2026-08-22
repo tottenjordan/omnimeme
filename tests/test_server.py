@@ -154,4 +154,3 @@ def test_video_execution_endpoints_and_static_files():
     static_url = resp.json()["video_url"]
     static_resp = client.get(static_url)
     assert static_resp.status_code in [200, 206]
-

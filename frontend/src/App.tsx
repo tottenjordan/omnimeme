@@ -24,6 +24,8 @@ import {
   GuidedInput,
   FreeformInput,
   DirectingResponse,
+  GenerationResult,
+  executeVideoGeneration,
   MediaAttachment,
   CharacterRole,
   fetchVaultCharacters,
@@ -65,6 +67,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DirectingResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [videoResult, setVideoResult] = useState<GenerationResult | null>(null);
+  const [isRenderingVideo, setIsRenderingVideo] = useState(false);
 
   // Character Vault State
   const [characters, setCharacters] = useState<CharacterRole[]>(SAMPLE_CHARACTERS);
@@ -389,6 +393,7 @@ export default function App() {
     setError(null);
     setStreamingText('');
     setResult(null);
+    setVideoResult(null);
 
     import('./api/client').then(({ streamGuided }) => {
       streamGuided(
@@ -418,6 +423,7 @@ export default function App() {
     setError(null);
     setStreamingText('');
     setResult(null);
+    setVideoResult(null);
 
     import('./api/client').then(({ streamFreeform }) => {
       streamFreeform(
@@ -435,6 +441,20 @@ export default function App() {
         }
       );
     });
+  };
+
+  const handleExecuteVideo = async () => {
+    if (!result?.result?.video_config) return;
+    setIsRenderingVideo(true);
+    setError(null);
+    try {
+      const res = await executeVideoGeneration(result.result.video_config);
+      setVideoResult(res);
+    } catch (err: any) {
+      setError(err.message || 'Video generation execution failed');
+    } finally {
+      setIsRenderingVideo(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -888,9 +908,21 @@ export default function App() {
               </div>
 
               <div>
-                <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
-                  Gemini Enterprise Agent Platform Payload Spec
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label">
+                    Gemini Enterprise Agent Platform Payload Spec
+                  </label>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={isRenderingVideo}
+                    onClick={handleExecuteVideo}
+                    style={{ padding: '6px 14px', fontSize: '13px', background: 'linear-gradient(135deg, #059669, #10b981)' }}
+                  >
+                    <Film size={15} />
+                    {isRenderingVideo ? '🎬 Rendering Video & MP4...' : '🎬 Generate Video & Render MP4'}
+                  </button>
+                </div>
                 <div className="json-box">
                   <pre>{JSON.stringify(result.result.video_config, null, 2)}</pre>
                 </div>
@@ -900,6 +932,41 @@ export default function App() {
                 <CheckCircle2 size={18} color="#60a5fa" />
                 <span>Payload ready for Gemini Omni Flash Preview Generation Endpoint.</span>
               </div>
+
+              {videoResult && (
+                <div style={{ background: '#0b0d12', border: '1px solid var(--panel-border)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Film size={18} color="#10b981" />
+                      🎬 The Screening Room
+                    </h3>
+                    <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      🛡️ SynthID C2PA Verified
+                    </span>
+                  </div>
+
+                  <video
+                    src={videoResult.video_url}
+                    controls
+                    autoPlay
+                    loop
+                    style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--panel-border)' }}
+                  />
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9ca3af', paddingTop: '4px' }}>
+                    <div>
+                      <span>Duration: {videoResult.duration_seconds}s</span> • <span>Mode: {videoResult.generation_mode}</span>
+                    </div>
+                    <a
+                      href={videoResult.video_url}
+                      download="omnimeme_rendered_video.mp4"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#3b82f6', color: '#ffffff', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '13px' }}
+                    >
+                      ⬇️ Download MP4
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="empty-state">

@@ -61,11 +61,32 @@ export interface DirectingResponse {
   error_message?: string;
 }
 
+export interface GenerationResult {
+  interaction_thread_id: string;
+  video_url: string;
+  gcs_uri?: string;
+  duration_seconds: number;
+  synth_id_watermark: string;
+  status: string;
+  error_message?: string;
+  generation_mode: string;
+}
+
 const API_BASE = '/api';
 
 export async function checkHealth(): Promise<{ status: string; service: string }> {
   const res = await fetch(`${API_BASE}/health`);
   if (!res.ok) throw new Error('Health check failed');
+  return res.json();
+}
+
+export async function executeVideoGeneration(config: VideoConfig): Promise<GenerationResult> {
+  const res = await fetch(`${API_BASE}/generate-video`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_config: config }),
+  });
+  if (!res.ok) throw new Error('Video generation failed');
   return res.json();
 }
 
