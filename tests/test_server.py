@@ -58,6 +58,8 @@ def test_stream_guided_endpoint():
     }
     with client.stream("POST", "/api/guided/stream", json=payload) as response:
         assert response.status_code == 200
+        assert response.headers.get("cache-control") == "no-cache"
+        assert response.headers.get("x-accel-buffering") == "no"
         content = "".join(list(response.iter_text()))
         assert "data:" in content
         assert "samurai" in content.lower() or "subject" in content.lower()
@@ -68,6 +70,8 @@ def test_stream_freeform_endpoint():
     payload = {"raw_prompt": "Drone flying through fog"}
     with client.stream("POST", "/api/freeform/stream", json=payload) as response:
         assert response.status_code == 200
+        assert response.headers.get("cache-control") == "no-cache"
+        assert response.headers.get("x-accel-buffering") == "no"
         content = "".join(list(response.iter_text()))
         assert "data:" in content
         assert "drone" in content.lower() or "subject" in content.lower()

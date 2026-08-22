@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from omnimeme.agent import create_omni_director_agent
@@ -17,6 +18,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "Content-Type": "text/event-stream",
+    "X-Accel-Buffering": "no",
+}
 
 
 class MediaAttachmentModel(BaseModel):
@@ -112,7 +120,6 @@ def stream_guided(req: GuidedApiRequest):
     )
     raw_directive = inp.to_raw_directive()
     reference_assets = inp.get_all_reference_assets()
-    from fastapi.responses import StreamingResponse
 
     generator = agent.stream_run(
         user_prompt=raw_directive,
@@ -121,7 +128,7 @@ def stream_guided(req: GuidedApiRequest):
         aspect_ratio=req.aspect_ratio,
         reference_assets=reference_assets,
     )
-    return StreamingResponse(generator, media_type="text/event-stream")
+    return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 
 
 @app.post("/api/freeform/stream")
@@ -137,11 +144,10 @@ def stream_freeform(req: FreeformApiRequest):
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
     reference_assets = inp.get_all_reference_assets()
-    from fastapi.responses import StreamingResponse
 
     generator = agent.stream_run(
         user_prompt=req.raw_prompt,
         director_notes=req.director_style_preference,
         reference_assets=reference_assets,
     )
-    return StreamingResponse(generator, media_type="text/event-stream")
+    return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
