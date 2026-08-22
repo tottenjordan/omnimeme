@@ -5,7 +5,6 @@ on:
 
 jobs:
   deploy_and_test_staging:
-    if: ${{ secrets.WIF_POOL_ID != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -25,6 +24,9 @@ jobs:
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
+        env:
+          WIF_POOL_ID: ${{ secrets.WIF_POOL_ID }}
+        if: env.WIF_POOL_ID != ''
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ vars.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ secrets.WIF_POOL_ID }}/providers/${{ secrets.WIF_PROVIDER_ID }}'
@@ -33,6 +35,9 @@ jobs:
           project_id: ${{ vars.CICD_PROJECT_ID }}
 
       - name: Set up Cloud SDK
+        env:
+          WIF_POOL_ID: ${{ secrets.WIF_POOL_ID }}
+        if: env.WIF_POOL_ID != ''
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
           install_components: 'beta'
@@ -41,9 +46,15 @@ jobs:
         run: rm -f uv.lock && uv sync --all-groups
 
       - name: Deploy to Staging (Agent Runtime)
+        env:
+          WIF_POOL_ID: ${{ secrets.WIF_POOL_ID }}
         run: |
-          uvx google-agents-cli@1.4.0 deploy \
-            --project ${{ vars.STAGING_PROJECT_ID }} \
-            --region ${{ vars.REGION }} \
-            --service-account=${{ vars.APP_SERVICE_ACCOUNT_STAGING }} \
-            --update-env-vars="OTEL_RESOURCE_ATTRIBUTES=service.version=${{ github.sha }},LOGS_BUCKET_NAME=${{ vars.LOGS_BUCKET_NAME_STAGING }}"
+          if [ -n "$WIF_POOL_ID" ]; then
+            uvx google-agents-cli@1.4.0 deploy \
+              --project ${{ vars.STAGING_PROJECT_ID }} \
+              --region ${{ vars.REGION }} \
+              --service-account=${{ vars.APP_SERVICE_ACCOUNT_STAGING }} \
+              --update-env-vars="OTEL_RESOURCE_ATTRIBUTES=service.version=${{ github.sha }},LOGS_BUCKET_NAME=${{ vars.LOGS_BUCKET_NAME_STAGING }}"
+          else
+            echo "ℹ️ WIF_POOL_ID secret not configured. Skipping staging deployment."
+          fi

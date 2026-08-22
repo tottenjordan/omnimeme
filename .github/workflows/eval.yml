@@ -7,7 +7,6 @@ on:
   pull_request:
     branches: [ main ]
 
-
 jobs:
   agent-eval:
     runs-on: ubuntu-latest
@@ -29,15 +28,15 @@ jobs:
       - name: Install Dependencies
         run: rm -f uv.lock && uv sync --all-groups
 
-
       - name: Execute agents-cli Evaluation Suite
-        if: secrets.GEMINI_API_KEY != '' || secrets.WIF_POOL_ID != '' || secrets.GCP_SERVICE_ACCOUNT != ''
         env:
-
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
           GOOGLE_CLOUD_LOCATION: "us-central1"
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          agents-cli eval run --dataset tests/eval/datasets/basic-dataset.json --config tests/eval/eval_config.yaml
-
+          if [ -n "$GEMINI_API_KEY" ] || [ -n "$GOOGLE_CLOUD_PROJECT" ]; then
+            agents-cli eval run --dataset tests/eval/datasets/basic-dataset.json --config tests/eval/eval_config.yaml
+          else
+            echo "ℹ️ GEMINI_API_KEY / GOOGLE_CLOUD_PROJECT secret not configured. Skipping live LLM evaluation."
+          fi
