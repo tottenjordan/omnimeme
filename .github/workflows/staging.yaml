@@ -26,7 +26,9 @@ on:
 
 jobs:
   deploy_and_test_staging:
+    if: ${{ secrets.WIF_POOL_ID != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}
     runs-on: ubuntu-latest
+
     permissions:
       contents: 'read'
       id-token: 'write'
