@@ -105,3 +105,27 @@ def test_vault_character_crud_and_turnaround_endpoints():
     resp = client.delete("/api/vault/characters/char_test_01")
     assert resp.status_code == 200
 
+
+def test_gcs_proxy_and_turnaround_with_reference_image():
+    # Test GCS proxy endpoint
+    resp = client.get("/api/gcs/proxy?uri=gs://bucket/photo.png")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] in ["image/svg+xml", "image/png"]
+
+    # Test Turnaround generation with custom reference_image_url
+    char_payload = {
+        "role_id": "char_ref_01",
+        "name": "Ref Ninja",
+        "description": "Ninja with reference photo",
+    }
+    client.post("/api/vault/characters", json=char_payload)
+
+    resp = client.post(
+        "/api/vault/characters/char_ref_01/turnaround",
+        json={"reference_image_url": "gs://bucket/ref_ninja.png"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+    assert "gs://bucket/ref_ninja.png" in resp.json()["turnaround_config"]["prompt"]
+
+

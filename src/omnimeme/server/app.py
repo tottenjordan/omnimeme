@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from omnimeme.agent import create_omni_director_agent
@@ -46,6 +46,12 @@ class CharacterRoleModel(BaseModel):
     voice_style: str = ""
     wardrobe: str = ""
     image_role: str = "Character Reference"
+
+
+class TurnaroundApiRequest(BaseModel):
+    reference_image_url: str | None = None
+    style_preference: str = ""
+
 
 
 class GuidedApiRequest(BaseModel):
@@ -110,14 +116,37 @@ def delete_vault_character(role_id: str):
     return {"status": "success", "deleted_role_id": role_id}
 
 
+@app.get("/api/gcs/proxy")
+def proxy_gcs_image(uri: str):
+    """Proxies gs:// or http:// image URIs into visual SVG/PNG thumbnails for UI hot-loading."""
+    if not uri:
+        raise HTTPException(status_code=400, detail="URI is required")
+
+    if uri.startswith("http://") or uri.startswith("https://"):
+        return {"status": "redirect", "url": uri}
+
+    clean_name = uri.split("/")[-1]
+    svg_thumbnail = f"""<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200">
+      <rect width="300" height="200" fill="#1e293b"/>
+      <rect x="10" y="10" width="280" height="180" rx="8" fill="#0f172a" stroke="#3b82f6" stroke-width="2"/>
+      <circle cx="150" cy="80" r="30" fill="#3b82f6" opacity="0.8"/>
+      <path d="M120 140 Q150 110 180 140" stroke="#60a5fa" stroke-width="4" fill="none"/>
+      <text x="150" y="170" fill="#94a3b8" font-family="sans-serif" font-size="12" text-anchor="middle">{clean_name}</text>
+    </svg>"""
+    return Response(content=svg_thumbnail, media_type="image/svg+xml")
+
+
 @app.post("/api/vault/characters/{role_id}/turnaround")
-def generate_character_turnaround(role_id: str):
+def generate_character_turnaround(role_id: str, req: TurnaroundApiRequest | None = None):
     char = global_vault.get_character(role_id)
     if not char:
         raise HTTPException(status_code=404, detail="Character not found in vault")
 
-    config = generate_turnaround_sheet_config(char)
-    sheet_url = f"gs://omnimeme-assets/turnarounds/{char.role_id}_sheet.png"
+    ref_url = req.reference_image_url if req else None
+    style_pref = req.style_preference if req else ""
+
+    config = generate_turnaround_sheet_config(char, style_preference=style_pref, reference_image_url=ref_url)
+    sheet_url = ref_url or char.turnaround_sheet_url or f"gs://omnimeme-assets/turnarounds/{char.role_id}_sheet.png"
     char.turnaround_sheet_url = sheet_url
 
     return {
@@ -126,6 +155,7 @@ def generate_character_turnaround(role_id: str):
         "turnaround_config": config,
         "generated_sheet_url": sheet_url,
     }
+
 
 
 @app.post("/api/guided/enhance")
