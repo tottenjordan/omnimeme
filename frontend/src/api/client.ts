@@ -93,9 +93,12 @@ async function handleStream(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    }).catch((fetchErr) => {
+      throw new Error('FastAPI backend connection error. Ensure uvicorn is running with: uv run uvicorn omnimeme.server.app:app --port 8000');
     });
+
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ detail: 'Stream request failed' }));
+      const errorData = await res.json().catch(() => ({ detail: 'FastAPI backend connection error. Ensure uvicorn is running with: uv run uvicorn omnimeme.server.app:app --port 8000' }));
       throw new Error(errorData.detail || 'Stream request failed');
     }
     const reader = res.body?.getReader();
