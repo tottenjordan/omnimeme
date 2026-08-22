@@ -195,8 +195,19 @@ export async function deleteVaultCharacter(roleId: string): Promise<{ status: st
   return res.json();
 }
 
-export async function generateTurnaroundSheet(roleId: string): Promise<any> {
-  const res = await fetch(`${API_BASE}/vault/characters/${roleId}/turnaround`, { method: 'POST' });
+export function getThumbnailUrl(uri?: string): string {
+  if (!uri) return '';
+  if (uri.startsWith('http://') || uri.startsWith('https://')) return uri;
+  return `${API_BASE}/gcs/proxy?uri=${encodeURIComponent(uri)}`;
+}
+
+export async function generateTurnaroundSheet(roleId: string, referenceImageUrl?: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/vault/characters/${roleId}/turnaround`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reference_image_url: referenceImageUrl }),
+  });
   if (!res.ok) throw new Error('Failed to generate turnaround sheet');
   return res.json();
 }
+

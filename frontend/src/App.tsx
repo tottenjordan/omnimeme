@@ -29,7 +29,8 @@ import {
   fetchVaultCharacters,
   createVaultCharacter,
   deleteVaultCharacter,
-  generateTurnaroundSheet
+  generateTurnaroundSheet,
+  getThumbnailUrl
 } from './api/client';
 
 const SAMPLE_CHARACTERS: CharacterRole[] = [
@@ -236,11 +237,18 @@ export default function App() {
   };
 
   const handleGenerateTurnaround = async (char: CharacterRole) => {
+    const refUrl = window.prompt(
+      `Optional Reference Image GCS URI for ${char.name} (leave blank to generate without reference image):`,
+      ''
+    );
+    if (refUrl === null) return; // User cancelled prompt
+
+    const referenceImageUrl = refUrl.trim() || undefined;
     setGeneratingTurnaroundId(char.role_id);
     setError(null);
     try {
-      const resp = await generateTurnaroundSheet(char.role_id);
-      const sheetUrl = resp.turnaround_sheet_url || `gs://omnimeme-vault/turnarounds/${char.role_id}_4panel.png`;
+      const resp = await generateTurnaroundSheet(char.role_id, referenceImageUrl);
+      const sheetUrl = resp.turnaround_sheet_url || referenceImageUrl || `gs://omnimeme-vault/turnarounds/${char.role_id}_4panel.png`;
       setCharacters((prev) =>
         prev.map((c) =>
           c.role_id === char.role_id
@@ -254,7 +262,7 @@ export default function App() {
         result: {
           agent_name: 'Character Vault Turnaround Generator',
           model: 'imagen-3-turnaround',
-          enhanced_prompt: `@Image1: Character Reference\n4-Panel Turnaround Sheet Payload for Character [${char.name} (${char.role_id})]:\n- Front View: Full body neutral standing pose\n- Side Profile: 90 degree lateral perspective\n- 3/4 View: Dynamic hero angle\n- Back View: Wardrobe and rear detail view\nAesthetic: ${(char.aesthetic_tags || []).join(', ')}\nWardrobe Specs: ${char.wardrobe || 'Standard tactical'}`,
+          enhanced_prompt: `@Image1: Character Reference\n4-Panel Turnaround Sheet Payload for Character [${char.name} (${char.role_id})]:\n- Front View: Full body neutral standing pose\n- Side Profile: 90 degree lateral perspective\n- 3/4 View: Dynamic hero angle\n- Back View: Wardrobe and rear detail view\nAesthetic: ${(char.aesthetic_tags || []).join(', ')}\nWardrobe Specs: ${char.wardrobe || 'Standard tactical'}${referenceImageUrl ? `\nReference Image Source: ${referenceImageUrl}` : ''}`,
           video_config: {
             model: 'gemini-omni-flash',
             prompt: `@Image1: Character Reference (4-panel turnaround grid)`,
@@ -271,7 +279,7 @@ export default function App() {
       });
     } catch (err: any) {
       // Local fallback simulation if server API returns offline
-      const sheetUrl = char.turnaround_sheet_url || `gs://omnimeme-vault/turnarounds/${char.role_id}_4panel.png`;
+      const sheetUrl = referenceImageUrl || char.turnaround_sheet_url || `gs://omnimeme-vault/turnarounds/${char.role_id}_4panel.png`;
       setCharacters((prev) =>
         prev.map((c) =>
           c.role_id === char.role_id
@@ -285,7 +293,7 @@ export default function App() {
         result: {
           agent_name: 'Character Vault Turnaround Generator',
           model: 'imagen-3-turnaround',
-          enhanced_prompt: `@Image1: Character Reference\n4-Panel Turnaround Sheet Payload for Character [${char.name} (${char.role_id})]:\n- Front View: Full body neutral standing pose\n- Side Profile: 90 degree lateral perspective\n- 3/4 View: Dynamic hero angle\n- Back View: Wardrobe and rear detail view\nAesthetic: ${(char.aesthetic_tags || []).join(', ')}\nWardrobe Specs: ${char.wardrobe || 'Standard tactical'}`,
+          enhanced_prompt: `@Image1: Character Reference\n4-Panel Turnaround Sheet Payload for Character [${char.name} (${char.role_id})]:\n- Front View: Full body neutral standing pose\n- Side Profile: 90 degree lateral perspective\n- 3/4 View: Dynamic hero angle\n- Back View: Wardrobe and rear detail view\nAesthetic: ${(char.aesthetic_tags || []).join(', ')}\nWardrobe Specs: ${char.wardrobe || 'Standard tactical'}${referenceImageUrl ? `\nReference Image Source: ${referenceImageUrl}` : ''}`,
           video_config: {
             model: 'gemini-omni-flash',
             prompt: `@Image1: Character Reference (4-panel turnaround grid)`,
@@ -473,6 +481,13 @@ export default function App() {
         <div className="character-grid">
           {characters.map((char) => (
             <div key={char.role_id} className="character-card">
+              {char.turnaround_sheet_url && (
+                <img
+                  src={getThumbnailUrl(char.turnaround_sheet_url)}
+                  alt={char.name}
+                  style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '6px 6px 0 0' }}
+                />
+              )}
               <div>
                 <div className="character-card-header">
                   <h3 className="character-name">{char.name}</h3>
@@ -851,6 +866,18 @@ export default function App() {
             </div>
           ) : result ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {result.result.video_config?.reference_assets?.[0]?.uri && (
+                <div>
+                  <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
+                    Hot-Loaded Turnaround / Reference Thumbnail Preview
+                  </label>
+                  <img
+                    src={getThumbnailUrl(result.result.video_config.reference_assets[0].uri)}
+                    alt="Turnaround Thumbnail Preview"
+                    style={{ width: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--panel-border)', background: '#0f1117' }}
+                  />
+                </div>
+              )}
               <div>
                 <label className="form-label" style={{ marginBottom: '8px', display: 'block' }}>
                   Expanded Omni Flash Directing Prompt Taxonomy
