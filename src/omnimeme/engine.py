@@ -1,5 +1,6 @@
 """Gemini Omni Flash Video Execution Engine & Safety Guardrail Gateway."""
 
+import base64
 import json
 import logging
 import math
@@ -10,6 +11,7 @@ import uuid
 import wave
 from dataclasses import dataclass
 from typing import Any, Generator
+
 
 logger = logging.getLogger("omnimeme.engine")
 
@@ -200,9 +202,9 @@ def parse_guardrail_error_guidance(error_msg: str) -> dict[str, Any]:
 
 
 class OmniFlashExecutionEngine:
-    """Execution Engine for Gemini Omni Flash Video Generation."""
+    """Execution Engine for Gemini Omni Flash Video Generation & Interactions API."""
 
-    def __init__(self, api_key: str | None = None, mock_mode: bool = True):
+    def __init__(self, api_key: str | None = None, mock_mode: bool = False):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.mock_mode = mock_mode
 
@@ -210,15 +212,63 @@ class OmniFlashExecutionEngine:
         self,
         config: dict[str, Any],
         output_filename: str | None = None,
+        previous_interaction_id: str | None = None,
     ) -> GenerationResult:
         prompt = config.get("prompt", "")
         params = config.get("parameters", {})
         duration = params.get("duration_seconds", 5)
 
-        thread_id = f"turn_{uuid.uuid4().hex[:8]}"
+        thread_id = previous_interaction_id or f"turn_{uuid.uuid4().hex[:8]}"
         fname = output_filename or f"omni_{uuid.uuid4().hex[:8]}.mp4"
         video_url = f"/static/rendered/{fname}"
+        rel_path = video_url.lstrip("/")
 
+        # Live Gemini Omni Flash Interactions API Call
+        if not self.mock_mode and genai is not None:
+            try:
+                client = genai.Client(api_key=self.api_key) if self.api_key else genai.Client()
+                kwargs: dict[str, Any] = {
+                    "model": "gemini-omni-flash-preview",
+                    "input": prompt,
+                }
+                if previous_interaction_id:
+                    kwargs["previous_interaction_id"] = previous_interaction_id
+
+                logger.info(f"Invoking Gemini Omni Flash Interactions API: {prompt[:60]}...")
+                interaction = client.interactions.create(**kwargs)
+                thread_id = getattr(interaction, "id", thread_id)
+
+                video_bytes = None
+                output_video = getattr(interaction, "output_video", None)
+                if output_video and hasattr(output_video, "data"):
+                    video_bytes = base64.b64decode(output_video.data)
+                elif hasattr(interaction, "steps"):
+                    for step in getattr(interaction, "steps", []):
+                        if getattr(step, "type", "") == "model_output":
+                            for content in getattr(step, "content", []):
+                                if getattr(content, "type", "") == "video" and hasattr(content, "data"):
+                                    video_bytes = base64.b64decode(content.data)
+                                    break
+
+                if video_bytes:
+                    dirname = os.path.dirname(rel_path)
+                    if dirname:
+                        os.makedirs(dirname, exist_ok=True)
+                    with open(rel_path, "wb") as f:
+                        f.write(video_bytes)
+                    logger.info(f"Successfully generated native Gemini Omni Flash video: {rel_path}")
+                    return GenerationResult(
+                        interaction_thread_id=thread_id,
+                        video_url=video_url,
+                        gcs_uri=f"gs://omnimeme-rendered/{fname}",
+                        duration_seconds=duration,
+                        status="completed",
+                        generation_mode="LIVE_GEMINI_OMNI_FLASH",
+                    )
+            except Exception as e:
+                logger.warning(f"Gemini Omni Flash API call failed/unreachable ({e}). Falling back to FFmpeg preview.")
+
+        # Fallback to local FFmpeg preview synthesizer
         ensure_rendered_video(video_url, prompt=prompt, duration=duration)
 
         return GenerationResult(
@@ -227,18 +277,24 @@ class OmniFlashExecutionEngine:
             gcs_uri=f"gs://omnimeme-rendered/{fname}",
             duration_seconds=duration,
             status="completed",
-            generation_mode="LOCAL_FFMPEG_PREVIEW" if self.mock_mode else "LIVE_OMNI_FLASH",
+            generation_mode="LOCAL_FFMPEG_PREVIEW" if self.mock_mode else "LIVE_OMNI_FLASH_FALLBACK",
         )
 
     def stream_generate_video(
         self,
         config: dict[str, Any],
         output_filename: str | None = None,
+        previous_interaction_id: str | None = None,
     ) -> Generator[str, None, None]:
         yield f"data: {json.dumps({'status': 'initializing', 'progress': 10})}\n\n"
-        yield f"data: {json.dumps({'status': 'rendering_audio', 'progress': 40})}\n\n"
+        yield f"data: {json.dumps({'status': 'invoking_omni_flash', 'progress': 40})}\n\n"
 
-        result = self.generate_video(config, output_filename)
+        result = self.generate_video(
+            config,
+            output_filename=output_filename,
+            previous_interaction_id=previous_interaction_id,
+        )
 
-        yield f"data: {json.dumps({'status': 'synthesizing_video', 'progress': 80})}\n\n"
+        yield f"data: {json.dumps({'status': 'saving_video_output', 'progress': 80})}\n\n"
         yield f"data: {json.dumps({'status': 'completed', 'progress': 100, 'result': result.to_dict()})}\n\n"
+

@@ -35,3 +35,50 @@ def test_execution_engine_generate_video(tmp_path):
     assert result.status == "completed"
     assert result.video_url.startswith("/static/rendered/")
     assert result.duration_seconds == 3
+
+
+def test_engine_default_mock_mode():
+    engine = OmniFlashExecutionEngine()
+    assert engine.mock_mode is False
+
+
+def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
+    import base64
+
+    fake_video_bytes = b"FAKE_MP4_HEADER_DATA"
+    fake_b64 = base64.b64encode(fake_video_bytes).decode("utf-8")
+
+    class FakeOutputVideo:
+        data = fake_b64
+
+    class FakeInteraction:
+        id = "turn_live_999"
+        output_video = FakeOutputVideo()
+
+    class FakeInteractionsClient:
+        def create(self, **kwargs):
+            assert kwargs["model"] == "gemini-omni-flash-preview"
+            assert kwargs["input"] == "Test prompt"
+            assert kwargs.get("previous_interaction_id") == "prev_turn_1"
+            return FakeInteraction()
+
+    class FakeGenAIClient:
+        interactions = FakeInteractionsClient()
+
+    fake_genai = type("FakeGenAI", (), {"Client": lambda self=None, **k: FakeGenAIClient()})()
+
+    import omnimeme.engine
+    monkeypatch.setattr(omnimeme.engine, "genai", fake_genai)
+
+    engine = OmniFlashExecutionEngine(mock_mode=False)
+    config = {"prompt": "Test prompt"}
+    res = engine.generate_video(
+        config,
+        output_filename="live_test.mp4",
+        previous_interaction_id="prev_turn_1",
+    )
+
+    assert res.status == "completed"
+    assert res.interaction_thread_id == "turn_live_999"
+    assert res.generation_mode == "LIVE_GEMINI_OMNI_FLASH"
+

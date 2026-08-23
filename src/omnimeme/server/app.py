@@ -267,17 +267,28 @@ def stream_freeform(req: FreeformApiRequest):
 class VideoExecutionRequest(BaseModel):
     video_config: dict[str, Any]
     session_name: str = ""
+    previous_interaction_id: str | None = None
+    mock_mode: bool | None = None
 
 
 @app.post("/api/generate-video")
 def generate_video(req: VideoExecutionRequest):
-    engine = OmniFlashExecutionEngine(mock_mode=True)
-    result = engine.generate_video(req.video_config)
+    is_mock = req.mock_mode if req.mock_mode is not None else False
+    engine = OmniFlashExecutionEngine(mock_mode=is_mock)
+    result = engine.generate_video(
+        req.video_config,
+        previous_interaction_id=req.previous_interaction_id,
+    )
     return result.to_dict()
 
 
 @app.post("/api/generate-video/stream")
 def stream_generate_video(req: VideoExecutionRequest):
-    engine = OmniFlashExecutionEngine(mock_mode=True)
-    generator = engine.stream_generate_video(req.video_config)
+    is_mock = req.mock_mode if req.mock_mode is not None else False
+    engine = OmniFlashExecutionEngine(mock_mode=is_mock)
+    generator = engine.stream_generate_video(
+        req.video_config,
+        previous_interaction_id=req.previous_interaction_id,
+    )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
+
