@@ -1,5 +1,8 @@
+import json
+import logging
 import os
 from typing import Any
+
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,10 +17,13 @@ from omnimeme.ui.freeform_widget import FreeformInput, process_freeform_request
 from omnimeme.ui.guided_experience import GuidedPromptInput, MediaAttachment, process_guided_request
 from omnimeme.vault import CharacterRole, CharacterVault
 
+logger = logging.getLogger("omnimeme.server")
+
 app = FastAPI(title="OmniMeme Video Directing Agent API", version="0.1.0")
 
 os.makedirs("static/rendered", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 global_vault = CharacterVault()
 
@@ -291,4 +297,26 @@ def stream_generate_video(req: VideoExecutionRequest):
         previous_interaction_id=req.previous_interaction_id,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
+
+
+class UserFeedbackRequest(BaseModel):
+    interaction_thread_id: str
+    rating: int  # 1 to 5 stars
+    feedback_type: str = "general"
+    comment: str | None = None
+    prompt: str | None = None
+
+
+@app.post("/api/feedback")
+def submit_feedback(req: UserFeedbackRequest):
+    if req.rating < 1 or req.rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 1 and 5.")
+
+    logger.info(
+        f"User Feedback received: thread={req.interaction_thread_id} rating={req.rating}/5 "
+        f"type={req.feedback_type} comment={json.dumps(req.comment or '')} prompt={json.dumps(req.prompt or '')}"
+    )
+    return {"status": "success", "message": "Feedback recorded successfully."}
+
+
 

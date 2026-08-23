@@ -161,3 +161,21 @@ def test_video_execution_endpoints_and_static_files():
     static_url = resp.json()["video_url"]
     static_resp = client.get(static_url)
     assert static_resp.status_code in [200, 206]
+
+
+def test_user_feedback_endpoint():
+    feedback_payload = {
+        "interaction_thread_id": "turn_test_123",
+        "rating": 5,
+        "feedback_type": "prompt_quality",
+        "comment": "Outstanding camera motion and lighting expansion!",
+        "prompt": "Cyberpunk samurai under neon rain",
+    }
+    resp = client.post("/api/feedback", json=feedback_payload)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "success"
+
+    # Test invalid rating
+    bad_resp = client.post("/api/feedback", json={**feedback_payload, "rating": 6})
+    assert bad_resp.status_code == 400
+
