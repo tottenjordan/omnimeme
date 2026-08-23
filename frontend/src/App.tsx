@@ -32,10 +32,23 @@ import {
   createVaultCharacter,
   deleteVaultCharacter,
   generateTurnaroundSheet,
-  getThumbnailUrl
+  getThumbnailUrl,
+  submitUserFeedback
 } from './api/client';
 
+export interface ScreeningTurn {
+  id: string;
+  prompt: string;
+  video_url: string;
+  interaction_thread_id: string;
+  generation_mode: string;
+  rating?: number;
+  user_comment?: string;
+  timestamp: string;
+}
+
 const SAMPLE_CHARACTERS: CharacterRole[] = [
+
   {
     role_id: 'cyber_samurai_kaito',
     name: 'Kaito - Cyber Samurai',
@@ -70,7 +83,14 @@ export default function App() {
   const [videoResult, setVideoResult] = useState<GenerationResult | null>(null);
   const [isRenderingVideo, setIsRenderingVideo] = useState(false);
 
+  // Screening Room Conversational State
+  const [screeningHistory, setScreeningHistory] = useState<ScreeningTurn[]>([]);
+  const [editPrompt, setEditPrompt] = useState<string>('');
+  const [submittingRatingId, setSubmittingRatingId] = useState<string | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState<string>('');
+
   // Character Vault State
+
   const [characters, setCharacters] = useState<CharacterRole[]>(SAMPLE_CHARACTERS);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [generatingTurnaroundId, setGeneratingTurnaroundId] = useState<string | null>(null);
@@ -450,12 +470,81 @@ export default function App() {
     try {
       const res = await executeVideoGeneration(result.result.video_config);
       setVideoResult(res);
+      const newTurn: ScreeningTurn = {
+        id: `turn_${Date.now()}`,
+        prompt: result.result.enhanced_prompt || result.result.video_config.prompt,
+        video_url: res.video_url,
+        interaction_thread_id: res.interaction_thread_id,
+        generation_mode: res.generation_mode,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      setScreeningHistory((prev) => [newTurn, ...prev]);
     } catch (err: any) {
       setError(err.message || 'Video generation execution failed');
     } finally {
       setIsRenderingVideo(false);
     }
   };
+
+  const handleConversationalEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPrompt.trim()) return;
+    if (!screeningHistory.length) {
+      setError('Please generate an initial video before applying conversational edits.');
+      return;
+    }
+    const lastTurn = screeningHistory[0];
+    setIsRenderingVideo(true);
+    setError(null);
+
+    const editConfig: VideoConfig = {
+      model: 'gemini-omni-flash-preview',
+      prompt: editPrompt.trim(),
+      parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30 },
+    };
+
+    try {
+      const res = await executeVideoGeneration(editConfig, lastTurn.interaction_thread_id);
+      const newTurn: ScreeningTurn = {
+        id: `turn_${Date.now()}`,
+        prompt: editPrompt.trim(),
+        video_url: res.video_url,
+        interaction_thread_id: res.interaction_thread_id,
+        generation_mode: res.generation_mode,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      setScreeningHistory((prev) => [newTurn, ...prev]);
+      setVideoResult(res);
+      setEditPrompt('');
+    } catch (err: any) {
+      setError(err.message || 'Conversational video edit failed');
+    } finally {
+      setIsRenderingVideo(false);
+    }
+  };
+
+  const handleRatingSubmit = async (turnId: string, rating: number) => {
+    const turn = screeningHistory.find((t) => t.id === turnId);
+    if (!turn) return;
+    setSubmittingRatingId(turnId);
+    try {
+      await submitUserFeedback({
+        interaction_thread_id: turn.interaction_thread_id,
+        rating,
+        comment: feedbackComment || undefined,
+        prompt: turn.prompt,
+      });
+      setScreeningHistory((prev) =>
+        prev.map((t) => (t.id === turnId ? { ...t, rating, user_comment: feedbackComment } : t))
+      );
+      setFeedbackComment('');
+    } catch (err: any) {
+      setError('Failed to submit user feedback');
+    } finally {
+      setSubmittingRatingId(null);
+    }
+  };
+
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -945,11 +1034,11 @@ export default function App() {
               </div>
 
               {videoResult && (
-                <div style={{ background: '#0b0d12', border: '1px solid var(--panel-border)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ background: '#0b0d12', border: '1px solid var(--panel-border)', borderRadius: '10px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Film size={18} color="#10b981" />
-                      🎬 The Screening Room
+                      🎬 The Screening Room & Conversational Editing Suite
                     </h3>
                     <span style={{ fontSize: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '3px 8px', borderRadius: '6px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       🛡️ SynthID C2PA Verified
@@ -964,9 +1053,9 @@ export default function App() {
                     style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--panel-border)' }}
                   />
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9ca3af', paddingTop: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#9ca3af' }}>
                     <div>
-                      <span>Duration: {videoResult.duration_seconds}s</span> • <span>Mode: {videoResult.generation_mode}</span>
+                      <span>Duration: {videoResult.duration_seconds}s</span> • <span>Mode: {videoResult.generation_mode}</span> • <span>Thread: {videoResult.interaction_thread_id}</span>
                     </div>
                     <a
                       href={videoResult.video_url}
@@ -976,8 +1065,75 @@ export default function App() {
                       ⬇️ Download MP4
                     </a>
                   </div>
+
+                  {/* Conversational Editing Form */}
+                  <form onSubmit={handleConversationalEdit} style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <label className="form-label" style={{ fontSize: '13px', color: '#60a5fa' }}>
+                      ✨ Conversational Video Editing (Multi-Turn Gemini Omni Flash)
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Describe what to add or change (e.g. Change lighting to magenta neon fog, make katana glow purple)..."
+                        value={editPrompt}
+                        onChange={(e) => setEditPrompt(e.target.value)}
+                        disabled={isRenderingVideo}
+                      />
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={isRenderingVideo || !editPrompt.trim()}
+                        style={{ padding: '8px 16px', fontSize: '13px', whiteSpace: 'nowrap' }}
+                      >
+                        {isRenderingVideo ? 'Editing...' : '✨ Apply Edit'}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* 5-Star Feedback & Analytics Rating */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <label className="form-label" style={{ fontSize: '12px', color: '#9ca3af' }}>
+                      📊 Rate Prompt Directing Quality (Streams to BigQuery Agent Analytics)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => handleRatingSubmit(screeningHistory[0]?.id || 'turn_current', star)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              fontSize: '20px',
+                              cursor: 'pointer',
+                              filter: (screeningHistory[0]?.rating || 0) >= star ? 'none' : 'grayscale(100%) opacity(0.3)'
+                            }}
+                          >
+                            ⭐
+                          </button>
+                        ))}
+                      </div>
+                      {screeningHistory[0]?.rating ? (
+                        <span style={{ fontSize: '12px', color: '#34d399', fontWeight: 600 }}>
+                          ✓ Rated {screeningHistory[0].rating}/5 Stars! Recorded in BigQuery Telemetry.
+                        </span>
+                      ) : (
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={{ height: '32px', fontSize: '12px' }}
+                          placeholder="Optional feedback comment..."
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                        />
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
+
             </div>
           ) : (
             <div className="empty-state">

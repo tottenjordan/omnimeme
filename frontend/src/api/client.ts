@@ -80,15 +80,40 @@ export async function checkHealth(): Promise<{ status: string; service: string }
   return res.json();
 }
 
-export async function executeVideoGeneration(config: VideoConfig): Promise<GenerationResult> {
+export async function executeVideoGeneration(
+  config: VideoConfig,
+  previousInteractionId?: string,
+  mockMode?: boolean
+): Promise<GenerationResult> {
   const res = await fetch(`${API_BASE}/generate-video`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ video_config: config }),
+    body: JSON.stringify({
+      video_config: config,
+      previous_interaction_id: previousInteractionId,
+      mock_mode: mockMode,
+    }),
   });
   if (!res.ok) throw new Error('Video generation failed');
   return res.json();
 }
+
+export async function submitUserFeedback(data: {
+  interaction_thread_id: string;
+  rating: number;
+  feedback_type?: string;
+  comment?: string;
+  prompt?: string;
+}): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_BASE}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to submit user feedback');
+  return res.json();
+}
+
 
 export async function enhanceGuided(data: GuidedInput): Promise<DirectingResponse> {
   const res = await fetch(`${API_BASE}/guided/enhance`, {
