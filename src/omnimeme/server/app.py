@@ -1,28 +1,52 @@
+from contextlib import asynccontextmanager
 import json
 import logging
 import os
 from typing import Any
 
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from google.adk.a2a.utils.agent_to_a2a import to_a2a
+from google.adk.agents.llm_agent import Agent
 from pydantic import BaseModel
 
 from omnimeme.agent import create_omni_director_agent
-from omnimeme.engine import OmniFlashExecutionEngine
+from omnimeme.engine import OmniFlashExecutionEngine, concatenate_storyboard_videos
+from omnimeme.prompts import OMNI_FLASH_DIRECTING_INSTR
+from omnimeme.scriptwriter import create_scriptwriter_agent
+from omnimeme.tools import enhance_video_prompt, generate_video_config
 from omnimeme.turnaround import generate_turnaround_sheet_config
 from omnimeme.ui.freeform_widget import FreeformInput, process_freeform_request
 from omnimeme.ui.guided_experience import GuidedPromptInput, MediaAttachment, process_guided_request
-from omnimeme.vault import CharacterRole, CharacterVault
+from omnimeme.vault import CHARACTER_ARCHETYPE_PRESETS, CharacterRole, CharacterVault
+
 
 logger = logging.getLogger("omnimeme.server")
 
-app = FastAPI(title="OmniMeme Video Directing Agent API", version="0.1.0")
+omni_director_adk_agent = Agent(
+    name="omni_director",
+    model="gemini-omni-1.1-flash-preview",
+    instruction=OMNI_FLASH_DIRECTING_INSTR,
+    tools=[enhance_video_prompt, generate_video_config],
+)
+
+a2a_director_app = to_a2a(omni_director_adk_agent)
+
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    async with a2a_director_app.router.lifespan_context(a2a_director_app):
+        yield
+
+
+app = FastAPI(title="OmniMeme Video Directing Agent API", version="0.1.0", lifespan=lifespan)
+app.mount("/a2a/app", a2a_director_app)
 
 os.makedirs("static/rendered", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 
 global_vault = CharacterVault()
@@ -99,15 +123,34 @@ class FreeformApiRequest(BaseModel):
     motion_preset: str | None = None
 
 
+class ScriptwritingRequest(BaseModel):
+    concept: str
+    scene_count: int = 3
+    style_preference: str = ""
+    character_role_id: str | None = None
+
+
+class ConcatenateRequest(BaseModel):
+    video_urls: list[str]
+    output_filename: str | None = None
+
+
 def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAttachment]:
     return [
         MediaAttachment(uri=m.uri, mime_type=m.mime_type, description=m.description) for m in models
     ]
 
 
+
 @app.get("/api/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "OmniMeme Agent API"}
+
+
+@app.get("/api/vault/archetypes")
+def get_vault_archetypes():
+    return CHARACTER_ARCHETYPE_PRESETS
+
 
 
 @app.get("/api/vault/characters")
@@ -230,6 +273,38 @@ def enhance_freeform(req: FreeformApiRequest):
     if res["status"] == "error":
         raise HTTPException(status_code=400, detail=res["error_message"])
     return res
+
+
+@app.post("/api/scriptwriting/generate")
+def generate_scriptwriting(req: ScriptwritingRequest):
+    if not req.concept or not req.concept.strip():
+        raise HTTPException(status_code=400, detail="Concept cannot be empty.")
+
+    scriptwriter = create_scriptwriter_agent()
+    result = scriptwriter.generate_storyboard(
+        concept=req.concept,
+        scene_count=req.scene_count,
+        style_preference=req.style_preference,
+        character_role_id=req.character_role_id,
+        character_vault=global_vault,
+    )
+    return {"status": "success", "storyboard": result}
+
+
+@app.post("/api/scriptwriting/concatenate")
+def concatenate_scriptwriting(req: ConcatenateRequest):
+    if not req.video_urls:
+        raise HTTPException(status_code=400, detail="video_urls list cannot be empty.")
+    try:
+        master_url = concatenate_storyboard_videos(req.video_urls, output_filename=req.output_filename)
+        return {"status": "success", "master_video_url": master_url}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 
 @app.post("/api/guided/stream")

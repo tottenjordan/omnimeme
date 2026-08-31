@@ -179,3 +179,44 @@ def test_user_feedback_endpoint():
     bad_resp = client.post("/api/feedback", json={**feedback_payload, "rating": 6})
     assert bad_resp.status_code == 400
 
+
+def test_vault_archetypes_endpoint():
+    resp = client.get("/api/vault/archetypes")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 5
+    role_ids = [arch["role_id"] for arch in data]
+    assert "cyberpunk_ronin" in role_ids
+    assert "scifi_captain" in role_ids
+    assert "anime_mech_pilot" in role_ids
+    assert "fantasy_sorcerer" in role_ids
+    assert "film_noir_detective" in role_ids
+
+
+def test_scriptwriting_concatenate_endpoint():
+    payload = {
+        "video_urls": ["/static/rendered/scene1.mp4", "/static/rendered/scene2.mp4"],
+        "output_filename": "master_test_endpoint.mp4",
+    }
+    resp = client.post("/api/scriptwriting/concatenate", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["master_video_url"].endswith("master_test_endpoint.mp4")
+
+    # Test custom output filename enforcing master_ prefix
+    payload_custom = {
+        "video_urls": ["/static/rendered/scene1.mp4"],
+        "output_filename": "my_feature.mp4",
+    }
+    resp_custom = client.post("/api/scriptwriting/concatenate", json=payload_custom)
+    assert resp_custom.status_code == 200
+    assert resp_custom.json()["master_video_url"] == "/static/rendered/master_my_feature.mp4"
+
+    # Test error handling on empty video_urls
+    bad_resp = client.post("/api/scriptwriting/concatenate", json={"video_urls": []})
+    assert bad_resp.status_code == 400
+
+
+

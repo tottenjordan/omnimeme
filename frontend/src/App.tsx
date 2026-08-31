@@ -33,8 +33,17 @@ import {
   deleteVaultCharacter,
   generateTurnaroundSheet,
   getThumbnailUrl,
-  submitUserFeedback
+  submitUserFeedback,
+  generateStoryboard,
+  StoryboardResponse,
+  StoryboardScene,
+  streamGuided,
+  streamFreeform,
+  fetchArchetypePresets,
+  concatenateMasterFilm,
+  CharacterArchetypePreset
 } from './api/client';
+
 
 export interface ScreeningTurn {
   id: string;
@@ -73,8 +82,56 @@ const SAMPLE_CHARACTERS: CharacterRole[] = [
   }
 ];
 
+const DEFAULT_ARCHETYPE_PRESETS: CharacterArchetypePreset[] = [
+  {
+    role_id: 'cyberpunk_ronin',
+    name: 'Cyberpunk Ronin',
+    description: 'Lone cybernetic samurai with glowing plasma katana in neon rain.',
+    aesthetic_tags: ['Cyberpunk', 'Neon Noir', 'Futuristic'],
+    voice_style: 'Low gravelly synth bass',
+    wardrobe: 'Dark high-collar trenchcoat over carbon-fiber body armor',
+    image_role: 'Primary Protagonist',
+  },
+  {
+    role_id: 'scifi_captain',
+    name: 'Sci-Fi Captain',
+    description: 'Commanding starship captain with tactical visor and dress uniform.',
+    aesthetic_tags: ['Sci-Fi', 'Space Opera', 'Commanding'],
+    voice_style: 'Authoritative, calm, clear',
+    wardrobe: 'Deep navy naval tunic with gold rank pins and shoulder pauldrons',
+    image_role: 'Fleet Commander',
+  },
+  {
+    role_id: 'anime_mech_pilot',
+    name: 'Anime Mech Pilot',
+    description: 'Ace starfighter pilot in sleek combat suit.',
+    aesthetic_tags: ['Anime', 'Mecha', 'Cinematic'],
+    voice_style: 'Enthusiastic, sharp, intense',
+    wardrobe: 'White and crimson plugsuit with holographic HUD elements',
+    image_role: 'Hero Pilot',
+  },
+  {
+    role_id: 'fantasy_sorcerer',
+    name: 'Fantasy Sorcerer',
+    description: 'Mystical arch-mage channeling glowing arcane runes.',
+    aesthetic_tags: ['Fantasy', 'Arcane', 'High Magic'],
+    voice_style: 'Resonant, echoing, ancient',
+    wardrobe: 'Midnight blue embroidered velvet robes with crystal staff',
+    image_role: 'Arcane Spellcaster',
+  },
+  {
+    role_id: 'film_noir_detective',
+    name: 'Film Noir Detective',
+    description: 'Hard-boiled investigator in rain-slicked city streets.',
+    aesthetic_tags: ['Noir', 'Monochrome', 'Vintage'],
+    voice_style: 'Smooth voiceover monologue, raspy',
+    wardrobe: 'Classic brown fedora, classic trench coat, smoking cigarette',
+    image_role: 'Lead Investigator',
+  },
+];
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'guided' | 'freeform' | 'screening'>('guided');
+  const [activeTab, setActiveTab] = useState<'guided' | 'freeform' | 'scriptwriter' | 'screening'>('guided');
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +139,93 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [videoResult, setVideoResult] = useState<GenerationResult | null>(null);
   const [isRenderingVideo, setIsRenderingVideo] = useState(false);
+
+  // Scriptwriter Agent & Concatenation Engine State
+  const [scriptwriterConcept, setScriptwriterConcept] = useState<string>(
+    'A cyberpunk detective uncovering a mysterious neon secret in the rain-slicked metropolis'
+  );
+  const [scriptwriterSceneCount, setScriptwriterSceneCount] = useState<number>(3);
+  const [scriptwriterStyle, setScriptwriterStyle] = useState<string>('Neon noir cinematic 4k, moody blue and amber lighting');
+  const [scriptwriterCharId, setScriptwriterCharId] = useState<string>('');
+  const [storyboard, setStoryboard] = useState<StoryboardResponse | null>(null);
+  const [isGeneratingStoryboard, setIsGeneratingStoryboard] = useState<boolean>(false);
+  const [isRenderingFederated, setIsRenderingFederated] = useState<boolean>(false);
+  const [renderedScenes, setRenderedScenes] = useState<Record<number, GenerationResult>>({});
+  const [isConcatenating, setIsConcatenating] = useState<boolean>(false);
+  const [masterFilmUrl, setMasterFilmUrl] = useState<string | null>(null);
+  const [archetypePresets, setArchetypePresets] = useState<CharacterArchetypePreset[]>(DEFAULT_ARCHETYPE_PRESETS);
+
+  const handleConcatenateMasterFilm = async () => {
+    if (!storyboard?.storyboard?.scenes?.length) return;
+    setIsConcatenating(true);
+    setError(null);
+    try {
+      const urls = storyboard.storyboard.scenes.map(
+        (scene) => renderedScenes[scene.scene_number]?.video_url || `/static/rendered/scene_${scene.scene_number}.mp4`
+      );
+      const res = await concatenateMasterFilm(urls);
+      setMasterFilmUrl(res.master_video_url);
+    } catch (err: any) {
+      setError(err.message || 'Master film concatenation failed');
+    } finally {
+      setIsConcatenating(false);
+    }
+  };
+
+  const handleApplyArchetypePreset = (preset: CharacterArchetypePreset) => {
+    setNewChar({
+      role_id: preset.role_id,
+      name: preset.name,
+      description: preset.description,
+      aesthetic_tags: preset.aesthetic_tags.join(', '),
+      voice_style: preset.voice_style,
+      wardrobe: preset.wardrobe,
+      image_role: preset.image_role,
+      turnaround_sheet_url: '',
+    });
+  };
+
+
+  const handleScriptwriterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scriptwriterConcept.trim()) {
+      setError('Creative concept is required.');
+      return;
+    }
+    setIsGeneratingStoryboard(true);
+    setError(null);
+    setRenderedScenes({});
+    try {
+      const res = await generateStoryboard({
+        concept: scriptwriterConcept.trim(),
+        scene_count: scriptwriterSceneCount,
+        style_preference: scriptwriterStyle.trim(),
+        character_role_id: scriptwriterCharId || undefined,
+      });
+      setStoryboard(res);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate multi-scene storyboard');
+    } finally {
+      setIsGeneratingStoryboard(false);
+    }
+  };
+
+  const handleRenderAllFederated = async () => {
+    if (!storyboard?.storyboard?.scenes?.length) return;
+    setIsRenderingFederated(true);
+    setError(null);
+    try {
+      for (const scene of storyboard.storyboard.scenes) {
+        const res = await executeVideoGeneration(scene.video_config);
+        setRenderedScenes((prev) => ({ ...prev, [scene.scene_number]: res }));
+      }
+    } catch (err: any) {
+      setError(err.message || 'Federated scene rendering failed');
+    } finally {
+      setIsRenderingFederated(false);
+    }
+  };
+
 
   // Screening Room Conversational State
   const [screeningHistory, setScreeningHistory] = useState<ScreeningTurn[]>([]);
@@ -166,7 +310,16 @@ export default function App() {
       .catch(() => {
         // Fallback to sample characters if offline or endpoint unpopulated
       });
+
+    fetchArchetypePresets()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setArchetypePresets(data);
+        }
+      })
+      .catch(() => {});
   }, []);
+
 
   const addGuidedImage = () => {
     if (!newImageUri.trim()) return;
@@ -423,22 +576,20 @@ export default function App() {
     setResult(null);
     setVideoResult(null);
 
-    import('./api/client').then(({ streamGuided }) => {
-      streamGuided(
-        guidedInput,
-        (chunk) => {
-          setStreamingText((prev) => prev + chunk);
-        },
-        (res) => {
-          setResult(res);
-          setLoading(false);
-        },
-        (err) => {
-          setError(err.message || 'Error streaming guided directing request');
-          setLoading(false);
-        }
-      );
-    });
+    streamGuided(
+      guidedInput,
+      (chunk) => {
+        setStreamingText((prev) => prev + chunk);
+      },
+      (res) => {
+        setResult(res);
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message || 'Error streaming guided directing request');
+        setLoading(false);
+      }
+    );
   };
 
   const handleFreeformSubmit = async (e: React.FormEvent) => {
@@ -453,22 +604,20 @@ export default function App() {
     setResult(null);
     setVideoResult(null);
 
-    import('./api/client').then(({ streamFreeform }) => {
-      streamFreeform(
-        freeformInput,
-        (chunk) => {
-          setStreamingText((prev) => prev + chunk);
-        },
-        (res) => {
-          setResult(res);
-          setLoading(false);
-        },
-        (err) => {
-          setError(err.message || 'Error streaming freeform directing request');
-          setLoading(false);
-        }
-      );
-    });
+    streamFreeform(
+      freeformInput,
+      (chunk) => {
+        setStreamingText((prev) => prev + chunk);
+      },
+      (res) => {
+        setResult(res);
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message || 'Error streaming freeform directing request');
+        setLoading(false);
+      }
+    );
   };
 
   const handleExecuteVideo = async () => {
@@ -716,6 +865,16 @@ export default function App() {
           Free-form Text Widget
         </button>
         <button
+          className={`tab-button ${activeTab === 'scriptwriter' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('scriptwriter');
+            setError(null);
+          }}
+        >
+          <Clapperboard size={16} color="#ec4899" />
+          🎭 Multi-Scene Scriptwriter
+        </button>
+        <button
           className={`tab-button ${activeTab === 'screening' ? 'active' : ''}`}
           onClick={() => {
             setActiveTab('screening');
@@ -743,6 +902,11 @@ export default function App() {
                 <>
                   <Sparkles size={20} color="#a78bfa" />
                   Natural Language Prompt Input
+                </>
+              ) : activeTab === 'scriptwriter' ? (
+                <>
+                  <Clapperboard size={20} color="#ec4899" />
+                  Creative Concept & Storyboard Generator
                 </>
               ) : (
                 <>
@@ -1154,6 +1318,68 @@ export default function App() {
                 {loading ? 'Directing Concept...' : 'Direct Prompt with Omni Flash'}
               </button>
             </form>
+          ) : activeTab === 'scriptwriter' ? (
+            <form onSubmit={handleScriptwriterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ background: 'rgba(236, 72, 153, 0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(236, 72, 153, 0.2)' }}>
+                <label className="form-label" style={{ color: '#f472b6', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <UserCheck size={14} color="#ec4899" />
+                  Quick-Select Character Vault Role (Optional)
+                </label>
+                <select
+                  className="form-select"
+                  value={scriptwriterCharId}
+                  onChange={(e) => setScriptwriterCharId(e.target.value)}
+                >
+                  <option value="">-- Select Vault Character --</option>
+                  {characters.map((c) => (
+                    <option key={c.role_id} value={c.role_id}>
+                      {c.name} ({c.role_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">High-Level Creative Concept *</label>
+                <textarea
+                  className="form-textarea"
+                  value={scriptwriterConcept}
+                  onChange={(e) => setScriptwriterConcept(e.target.value)}
+                  placeholder="Describe your multi-scene concept in high-level narrative detail..."
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Desired Scene Count</label>
+                <select
+                  className="form-select"
+                  value={scriptwriterSceneCount}
+                  onChange={(e) => setScriptwriterSceneCount(Number(e.target.value))}
+                >
+                  <option value={2}>2 Scenes</option>
+                  <option value={3}>3 Scenes (Default)</option>
+                  <option value={4}>4 Scenes</option>
+                  <option value={5}>5 Scenes</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Global Director Style Preference</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={scriptwriterStyle}
+                  onChange={(e) => setScriptwriterStyle(e.target.value)}
+                  placeholder="e.g. Cyberpunk neon noir, IMAX 4K"
+                />
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={isGeneratingStoryboard} style={{ background: 'linear-gradient(135deg, #db2777, #ec4899)' }}>
+                <Sparkles size={18} />
+                {isGeneratingStoryboard ? 'Generating Storyboard...' : '✨ Generate Multi-Scene Storyboard'}
+              </button>
+            </form>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#34d399', fontSize: '13px' }}>
@@ -1242,10 +1468,19 @@ export default function App() {
         <div className="card-panel">
           <div className="panel-header">
             <h2 className="panel-title">
-              <Video size={20} color="#10b981" />
-              Gemini Omni Flash Video Directing Output
+              {activeTab === 'scriptwriter' ? (
+                <>
+                  <Clapperboard size={20} color="#ec4899" />
+                  Multi-Scene Storyboard & A2A Federation
+                </>
+              ) : (
+                <>
+                  <Video size={20} color="#10b981" />
+                  Gemini Omni Flash Video Directing Output
+                </>
+              )}
             </h2>
-            {result && (
+            {result && activeTab !== 'scriptwriter' && (
               <button
                 onClick={() => copyToClipboard(result.result.enhanced_prompt)}
                 style={{ background: 'transparent', border: '1px solid var(--panel-border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}
@@ -1256,7 +1491,123 @@ export default function App() {
             )}
           </div>
 
-          {loading || streamingText ? (
+          {activeTab === 'scriptwriter' ? (
+            storyboard ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(236, 72, 153, 0.1)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#f472b6' }}>
+                      Concept: {storyboard.storyboard.concept}
+                    </h3>
+                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                      {storyboard.storyboard.scenes.length} Scenes Breakdown | Style: {storyboard.storyboard.style_preference || 'Default'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={isRenderingFederated}
+                      onClick={handleRenderAllFederated}
+                      style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #9333ea, #ec4899)' }}
+                    >
+                      <Film size={16} />
+                      {isRenderingFederated ? 'Rendering All Scenes...' : '🎬 Render All Scenes via A2A Federation'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={isConcatenating}
+                      onClick={handleConcatenateMasterFilm}
+                      style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #2563eb, #3b82f6)' }}
+                    >
+                      <Film size={16} />
+                      {isConcatenating ? 'Exporting Master MP4...' : '🎬 Export Full Master Feature Film MP4'}
+                    </button>
+                  </div>
+                </div>
+
+                {masterFilmUrl && (
+                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ color: '#60a5fa', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={16} color="#34d399" />
+                      Master Feature Film Rendered & Exported Successfully!
+                    </div>
+                    <video src={masterFilmUrl} controls autoPlay loop style={{ width: '100%', borderRadius: '6px', border: '1px solid var(--panel-border)' }} />
+                    <a href={masterFilmUrl} download target="_blank" rel="noreferrer" style={{ color: '#93c5fd', fontSize: '13px', textDecoration: 'underline' }}>
+                      Download Master Film MP4 ({masterFilmUrl})
+                    </a>
+                  </div>
+                )}
+
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {storyboard.storyboard.scenes.map((scene: StoryboardScene) => (
+                    <div
+                      key={scene.scene_number}
+                      style={{
+                        background: '#0f1117',
+                        border: '1px solid var(--panel-border)',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#ec4899' }}>
+                          {scene.title}
+                        </span>
+                        {renderedScenes[scene.scene_number] ? (
+                          <span style={{ fontSize: '12px', color: '#34d399', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+                            ✓ Rendered MP4
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#9ca3af', background: 'rgba(255, 255, 255, 0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+                            Ready to Render
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '13px', color: '#d1d5db', lineHeight: 1.5 }}>
+                        <strong>Visual Description:</strong> {scene.visual_description}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#9ca3af' }}>
+                        <span>🎥 <strong>Camera:</strong> {scene.camera_instruction}</span>
+                        <span>🎵 <strong>Audio:</strong> {scene.audio_cue}</span>
+                      </div>
+
+                      <div className="json-box" style={{ fontSize: '11px', maxHeight: '100px' }}>
+                        <pre>{JSON.stringify(scene.video_config, null, 2)}</pre>
+                      </div>
+
+                      {renderedScenes[scene.scene_number] && (
+                        <div style={{ marginTop: '8px' }}>
+                          <video
+                            src={renderedScenes[scene.scene_number].video_url}
+                            controls
+                            autoPlay
+                            loop
+                            style={{ width: '100%', borderRadius: '6px', border: '1px solid var(--panel-border)' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <Clapperboard size={48} color="#ec4899" style={{ opacity: 0.5 }} />
+                <h3 style={{ fontSize: '16px', color: '#e5e7eb' }}>No Storyboard Generated Yet</h3>
+                <p style={{ fontSize: '13px', maxWidth: '400px' }}>
+                  Enter a creative concept on the left and click "Generate Multi-Scene Storyboard" to transform it into structured scene blueprints.
+                </p>
+              </div>
+            )
+          ) : loading || streamingText ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label className="form-label" style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1439,7 +1790,6 @@ export default function App() {
                   </div>
                 </div>
               )}
-
             </div>
           ) : (
             <div className="empty-state">
@@ -1470,7 +1820,36 @@ export default function App() {
               </button>
             </div>
 
+            <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.2)', margin: '12px 0 4px 0' }}>
+              <label className="form-label" style={{ color: '#60a5fa', fontSize: '12px', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={14} color="#60a5fa" />
+                Visual Character Archetype Gallery Presets
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {archetypePresets.map((preset) => (
+                  <button
+                    key={preset.role_id}
+                    type="button"
+                    onClick={() => handleApplyArchetypePreset(preset)}
+                    style={{
+                      background: 'rgba(59, 130, 246, 0.15)',
+                      border: '1px solid rgba(59, 130, 246, 0.4)',
+                      color: '#93c5fd',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    + {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <form onSubmit={handleCreateVaultCharacter} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
               <div className="form-group">
                 <label className="form-label">Role ID (Unique Identifier) *</label>
                 <input

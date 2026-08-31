@@ -54,3 +54,53 @@ class CharacterVault:
             del self._characters[role_id]
             return True
         return False
+
+
+CHARACTER_ARCHETYPE_PRESETS: list[dict[str, Any]] = [
+    {
+        "role_id": "cyberpunk_ronin",
+        "name": "Cyberpunk Ronin",
+        "description": "Lone cybernetic samurai with glowing plasma katana in neon rain.",
+        "aesthetic_tags": ["Cyberpunk", "Neon Noir", "Futuristic"],
+        "voice_style": "Low gravelly synth bass",
+        "wardrobe": "Dark high-collar trenchcoat over carbon-fiber body armor",
+        "image_role": "Primary Protagonist",
+    },
+    {
+        "role_id": "scifi_captain",
+        "name": "Sci-Fi Captain",
+        "description": "Commanding starship captain with tactical visor and dress uniform.",
+        "aesthetic_tags": ["Sci-Fi", "Space Opera", "Commanding"],
+        "voice_style": "Authoritative, calm, clear",
+        "wardrobe": "Deep navy naval tunic with gold rank pins and shoulder pauldrons",
+        "image_role": "Fleet Commander",
+    },
+    {
+        "role_id": "anime_mech_pilot",
+        "name": "Anime Mech Pilot",
+        "description": "Ace starfighter pilot in sleek combat suit.",
+        "aesthetic_tags": ["Anime", "Mecha", "Cinematic"],
+        "voice_style": "Enthusiastic, sharp, intense",
+        "wardrobe": "White and crimson plugsuit with holographic HUD elements",
+        "image_role": "Hero Pilot",
+    },
+    {
+        "role_id": "fantasy_sorcerer",
+        "name": "Fantasy Sorcerer",
+        "description": "Mystical arch-mage channeling glowing arcane runes.",
+        "aesthetic_tags": ["Fantasy", "Arcane", "High Magic"],
+        "voice_style": "Resonant, echoing, ancient",
+        "wardrobe": "Midnight blue embroidered velvet robes with crystal staff",
+        "image_role": "Arcane Spellcaster",
+    },
+    {
+        "role_id": "film_noir_detective",
+        "name": "Film Noir Detective",
+        "description": "Hard-boiled investigator in rain-slicked city streets.",
+        "aesthetic_tags": ["Noir", "Monochrome", "Vintage"],
+        "voice_style": "Smooth voiceover monologue, raspy",
+        "wardrobe": "Classic brown fedora, classic trench coat, smoking cigarette",
+        "image_role": "Lead Investigator",
+    },
+]
+

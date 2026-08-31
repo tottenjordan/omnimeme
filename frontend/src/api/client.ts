@@ -88,6 +88,29 @@ export interface GenerationResult {
   generation_mode: string;
 }
 
+export interface StoryboardScene {
+  scene_number: number;
+  title: string;
+  visual_description: string;
+  camera_instruction: string;
+  audio_cue: string;
+  character_role_id?: string;
+  video_config: VideoConfig;
+}
+
+export interface StoryboardResponse {
+  status: string;
+  storyboard: {
+    concept: string;
+    scene_count: number;
+    style_preference: string;
+    character_role_id?: string;
+    scenes: StoryboardScene[];
+  };
+  error_message?: string;
+}
+
+
 const API_BASE = '/api';
 
 export async function checkHealth(): Promise<{ status: string; service: string }> {
@@ -272,4 +295,56 @@ export async function generateTurnaroundSheet(roleId: string, referenceImageUrl?
   if (!res.ok) throw new Error('Failed to generate turnaround sheet');
   return res.json();
 }
+
+export interface CharacterArchetypePreset {
+  role_id: string;
+  name: string;
+  description: string;
+  aesthetic_tags: string[];
+  voice_style: string;
+  wardrobe: string;
+  image_role: string;
+}
+
+export async function generateStoryboard(data: {
+  concept: string;
+  scene_count?: number;
+  style_preference?: string;
+  character_role_id?: string;
+}): Promise<StoryboardResponse> {
+  const res = await fetch(`${API_BASE}/scriptwriting/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: 'Failed to generate storyboard' }));
+    throw new Error(errorData.detail || 'Failed to generate storyboard');
+  }
+  return res.json();
+}
+
+export async function fetchArchetypePresets(): Promise<CharacterArchetypePreset[]> {
+  const res = await fetch(`${API_BASE}/vault/archetypes`);
+  if (!res.ok) throw new Error('Failed to fetch character archetype presets');
+  return res.json();
+}
+
+export async function concatenateMasterFilm(
+  videoUrls: string[],
+  outputFilename?: string
+): Promise<{ status: string; master_video_url: string }> {
+  const res = await fetch(`${API_BASE}/scriptwriting/concatenate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ video_urls: videoUrls, output_filename: outputFilename }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: 'Failed to concatenate master film' }));
+    throw new Error(errorData.detail || 'Failed to concatenate master film');
+  }
+  return res.json();
+}
+
+
 

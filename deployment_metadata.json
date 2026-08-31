@@ -1,5 +1,12 @@
 {
   "remote_agent_runtime_id": "projects/934903580331/locations/us-central1/reasoningEngines/8885621430935519232",
   "cloud_run_service_url": "https://omnimeme-934903580331.us-central1.run.app",
-  "deployment_timestamp": "2026-08-22T19:57:58Z"
+  "deployment_timestamp": "2026-08-22T19:57:58Z",
+  "pending_operation": {
+    "operation_name": "projects/934903580331/locations/us-central1/reasoningEngines/7387563101689741312/operations/3409586266402979840",
+    "project": "hybrid-vertex",
+    "location": "us-central1",
+    "deployment_target": "agent_runtime",
+    "started_at": "2026-08-31T18:59:24.612774+00:00"
+  }
 }

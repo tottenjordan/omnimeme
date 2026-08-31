@@ -11,6 +11,7 @@ import uuid
 import wave
 from dataclasses import dataclass
 from typing import Any, Generator
+import urllib.parse
 
 
 logger = logging.getLogger("omnimeme.engine")
@@ -326,4 +327,98 @@ class OmniFlashExecutionEngine:
 
         yield f"data: {json.dumps({'status': 'saving_video_output', 'progress': 80})}\n\n"
         yield f"data: {json.dumps({'status': 'completed', 'progress': 100, 'result': result.to_dict()})}\n\n"
+
+
+def concatenate_storyboard_videos(
+    video_urls: list[str], output_filename: str | None = None
+) -> str:
+    """Concatenates multiple scene video clips into a single master MP4 film using FFmpeg."""
+    if not video_urls:
+        raise ValueError("video_urls list cannot be empty")
+
+    if output_filename:
+        fname = output_filename if output_filename.startswith("master_") else f"master_{output_filename}"
+    else:
+        fname = f"master_{uuid.uuid4().hex[:8]}.mp4"
+
+    if not fname.endswith(".mp4"):
+        fname += ".mp4"
+
+    out_url = f"/static/rendered/{fname}"
+    out_rel_path = out_url.lstrip("/")
+
+    dirname = os.path.dirname(out_rel_path)
+    if dirname:
+        os.makedirs(dirname, exist_ok=True)
+
+    valid_paths = []
+    for raw_url in video_urls:
+        parsed_path = urllib.parse.urlparse(raw_url).path
+        rel = parsed_path.lstrip("/")
+        if not rel:
+            continue
+        clean_url = f"/{rel}"
+        ensure_rendered_video(clean_url)
+        if os.path.exists(rel):
+            valid_paths.append(os.path.abspath(rel))
+
+    if not valid_paths:
+        raise RuntimeError("No valid video files available for concatenation")
+
+    concat_list_path = f"static/rendered/concat_{uuid.uuid4().hex[:8]}.txt"
+    try:
+        with open(concat_list_path, "w", encoding="utf-8") as f:
+            for path in valid_paths:
+                escaped_path = path.replace("'", "'\\''")
+                f.write(f"file '{escaped_path}'\n")
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            concat_list_path,
+            "-c",
+            "copy",
+            out_rel_path,
+        ]
+        res = subprocess.run(cmd, capture_output=True, check=False)
+        if res.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
+            cmd_reencode = [
+                "ffmpeg",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                concat_list_path,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "aac",
+                out_rel_path,
+            ]
+            res_re = subprocess.run(cmd_reencode, capture_output=True, check=False)
+            if res_re.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
+                raise RuntimeError("FFmpeg video concatenation failed")
+    finally:
+        if os.path.exists(concat_list_path):
+            try:
+                os.remove(concat_list_path)
+            except Exception:
+                pass
+
+    return out_url
+
+
 

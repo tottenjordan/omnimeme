@@ -88,3 +88,54 @@ def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
     assert res.interaction_thread_id == "turn_live_999"
     assert res.generation_mode == "LIVE_GEMINI_OMNI_1_1_FLASH"
 
+
+def test_concatenate_storyboard_videos_success():
+    import os
+    from omnimeme.engine import concatenate_storyboard_videos, ensure_rendered_video
+
+    url1 = "/static/rendered/test_scene_1.mp4"
+    url2 = "/static/rendered/test_scene_2.mp4"
+    ensure_rendered_video(url1, prompt="Scene 1", duration=2)
+    ensure_rendered_video(url2, prompt="Scene 2", duration=2)
+
+    master_url = concatenate_storyboard_videos([url1, url2], output_filename="test_master_out.mp4")
+    assert master_url.startswith("/static/rendered/")
+    assert master_url.endswith("test_master_out.mp4")
+    rel_path = master_url.lstrip("/")
+    assert os.path.exists(rel_path)
+    assert os.path.getsize(rel_path) > 0
+
+
+def test_concatenate_storyboard_videos_empty_list():
+    import pytest
+    from omnimeme.engine import concatenate_storyboard_videos
+
+    with pytest.raises(ValueError, match="video_urls list cannot be empty"):
+        concatenate_storyboard_videos([])
+
+
+def test_concatenate_storyboard_videos_full_url():
+    import os
+    from omnimeme.engine import concatenate_storyboard_videos, ensure_rendered_video
+
+    url1 = "http://localhost:8000/static/rendered/full_url_scene1.mp4"
+    url2 = "http://localhost:8000/static/rendered/full_url_scene2.mp4"
+    ensure_rendered_video("/static/rendered/full_url_scene1.mp4", prompt="Scene 1", duration=2)
+    ensure_rendered_video("/static/rendered/full_url_scene2.mp4", prompt="Scene 2", duration=2)
+
+    master_url = concatenate_storyboard_videos([url1, url2], output_filename="full_url_out.mp4")
+    assert master_url.startswith("/static/rendered/master_")
+    assert os.path.exists(master_url.lstrip("/"))
+
+
+def test_concatenate_storyboard_videos_enforce_master_prefix():
+    from omnimeme.engine import concatenate_storyboard_videos, ensure_rendered_video
+
+    url = "/static/rendered/scene_prefix.mp4"
+    ensure_rendered_video(url, prompt="Scene", duration=2)
+
+    master_url = concatenate_storyboard_videos([url], output_filename="custom_feature.mp4")
+    assert master_url == "/static/rendered/master_custom_feature.mp4"
+
+
+
