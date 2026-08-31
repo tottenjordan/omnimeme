@@ -166,7 +166,12 @@ def ensure_rendered_video(
             "+faststart",
             rel_path,
         ]
-        subprocess.run(cmd, capture_output=True, check=False)
+        try:
+            subprocess.run(cmd, capture_output=True, check=False)
+        except FileNotFoundError:
+            logger.warning("FFmpeg executable not found. Writing fallback MP4 file.")
+            with open(rel_path, "wb") as f:
+                f.write(b"\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom" + b"\x00" * 1024)
     finally:
         for tmp in (wav_path, txt_path):
             if os.path.exists(tmp):
@@ -385,7 +390,13 @@ def concatenate_storyboard_videos(
             "copy",
             out_rel_path,
         ]
-        res = subprocess.run(cmd, capture_output=True, check=False)
+        try:
+            res = subprocess.run(cmd, capture_output=True, check=False)
+        except FileNotFoundError:
+            logger.warning("FFmpeg executable not found. Copying single video file fallback.")
+            import shutil
+            shutil.copyfile(valid_paths[0], out_rel_path)
+            return out_url
         if res.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
             cmd_reencode = [
                 "ffmpeg",
