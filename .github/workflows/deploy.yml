@@ -43,7 +43,7 @@ jobs:
           npm run build
 
       - name: Deploy Container to Cloud Run (if credentials configured)
-        if: "${{ secrets.GCP_SA_KEY != '' }}"
+        if: secrets.GCP_SA_KEY != ''
         run: |
           uv pip install google-agents-cli || true
           uv run agents-cli deploy --region us-central1
