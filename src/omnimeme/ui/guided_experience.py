@@ -32,6 +32,9 @@ class GuidedPromptInput:
     audio: str = ""
     duration_sec: int = 5
     aspect_ratio: str = "16:9"
+    resolution: str = "720p"
+    first_frame_uri: str | None = None
+    last_frame_uri: str | None = None
     reference_images: list[MediaAttachment] = field(default_factory=list)
     reference_videos: list[MediaAttachment] = field(default_factory=list)
 
@@ -91,6 +94,9 @@ def process_guided_request(
         director_notes=f"Aspect: {input_data.aspect_ratio}, Duration: {input_data.duration_sec}s",
         duration_sec=input_data.duration_sec,
         aspect_ratio=input_data.aspect_ratio,
+        resolution=input_data.resolution,
+        first_frame_uri=input_data.first_frame_uri,
+        last_frame_uri=input_data.last_frame_uri,
         reference_assets=reference_assets,
         character_role=character_role,
     )

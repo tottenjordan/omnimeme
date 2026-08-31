@@ -139,9 +139,9 @@ def test_gcs_proxy_and_turnaround_with_reference_image():
 def test_video_execution_endpoints_and_static_files():
     config_payload = {
         "video_config": {
-            "model": "gemini-omni-flash-preview",
+            "model": "gemini-omni-1.1-flash-preview",
             "prompt": "Cyberpunk runner in neon rain",
-            "parameters": {"duration_seconds": 3, "aspect_ratio": "16:9"},
+            "parameters": {"duration_seconds": 3, "aspect_ratio": "16:9", "resolution": "720p"},
         }
     }
     # Test POST /api/generate-video

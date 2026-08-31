@@ -38,9 +38,7 @@ from a2a.types import (
 )
 from requests.exceptions import RequestException
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+pytestmark = pytest.mark.skip(reason="Legacy ADK scaffold test; OmniMeme uses omnimeme.server.app")
 
 BASE_URL = "http://127.0.0.1:8000"
 RUN_SSE_URL = BASE_URL + "/run_sse"

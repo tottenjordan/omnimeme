@@ -11,6 +11,9 @@ from omnimeme.ui.guided_experience import MediaAttachment
 class FreeformInput:
     raw_prompt: str
     director_style_preference: str = ""
+    resolution: str = "720p"
+    first_frame_uri: str | None = None
+    last_frame_uri: str | None = None
     reference_images: list[MediaAttachment] = field(default_factory=list)
     reference_videos: list[MediaAttachment] = field(default_factory=list)
 
@@ -24,6 +27,9 @@ class FreeformInput:
         for vid in self.reference_videos:
             assets.append(vid.to_dict())
         return assets
+
+
+FreeformPromptInput = FreeformInput
 
 
 def process_freeform_request(
@@ -41,6 +47,9 @@ def process_freeform_request(
     result = agent.run(
         user_prompt=input_data.raw_prompt,
         director_notes=input_data.director_style_preference,
+        resolution=input_data.resolution,
+        first_frame_uri=input_data.first_frame_uri,
+        last_frame_uri=input_data.last_frame_uri,
         reference_assets=reference_assets,
         character_role=character_role,
     )

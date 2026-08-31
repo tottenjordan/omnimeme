@@ -17,10 +17,16 @@ def test_generate_video_config_tool():
         enhanced_prompt="Cinematic shot of a car in rain",
         duration_sec=5,
         aspect_ratio="16:9",
+        resolution="1080p",
+        first_frame_uri="gs://bucket/start.png",
+        last_frame_uri="gs://bucket/end.png",
     )
-    assert cfg["model"] == "gemini-omni-flash-preview"
+    assert cfg["model"] == "gemini-omni-1.1-flash-preview"
     assert cfg["parameters"]["duration_seconds"] == 5
     assert cfg["parameters"]["aspect_ratio"] == "16:9"
+    assert cfg["parameters"]["resolution"] == "1080p"
+    assert cfg["parameters"]["first_frame_uri"] == "gs://bucket/start.png"
+    assert cfg["parameters"]["last_frame_uri"] == "gs://bucket/end.png"
 
 
 def test_omni_director_agent_creation():

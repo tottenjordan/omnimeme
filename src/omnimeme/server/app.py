@@ -64,6 +64,9 @@ class CharacterRoleModel(BaseModel):
 class TurnaroundApiRequest(BaseModel):
     reference_image_url: str | None = None
     style_preference: str = ""
+    resolution: str = "720p"
+    first_frame_uri: str | None = None
+    last_frame_uri: str | None = None
 
 
 class GuidedApiRequest(BaseModel):
@@ -75,6 +78,9 @@ class GuidedApiRequest(BaseModel):
     audio: str = ""
     duration_sec: int = 5
     aspect_ratio: str = "16:9"
+    resolution: str = "720p"
+    first_frame_uri: str | None = None
+    last_frame_uri: str | None = None
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
     character_role_id: str | None = None
@@ -83,6 +89,9 @@ class GuidedApiRequest(BaseModel):
 class FreeformApiRequest(BaseModel):
     raw_prompt: str
     director_style_preference: str = ""
+    resolution: str = "720p"
+    first_frame_uri: str | None = None
+    last_frame_uri: str | None = None
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
     character_role_id: str | None = None
@@ -187,6 +196,9 @@ def enhance_guided(req: GuidedApiRequest):
         audio=req.audio,
         duration_sec=req.duration_sec,
         aspect_ratio=req.aspect_ratio,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
@@ -203,6 +215,9 @@ def enhance_freeform(req: FreeformApiRequest):
     inp = FreeformInput(
         raw_prompt=req.raw_prompt,
         director_style_preference=req.director_style_preference,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
@@ -228,6 +243,9 @@ def stream_guided(req: GuidedApiRequest):
         audio=req.audio,
         duration_sec=req.duration_sec,
         aspect_ratio=req.aspect_ratio,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
@@ -240,6 +258,9 @@ def stream_guided(req: GuidedApiRequest):
         director_notes=f"Aspect: {req.aspect_ratio}, Duration: {req.duration_sec}s",
         duration_sec=req.duration_sec,
         aspect_ratio=req.aspect_ratio,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
         reference_assets=reference_assets,
         character_role=char_role,
     )
@@ -255,6 +276,9 @@ def stream_freeform(req: FreeformApiRequest):
     inp = FreeformInput(
         raw_prompt=req.raw_prompt,
         director_style_preference=req.director_style_preference,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
     )
@@ -264,6 +288,9 @@ def stream_freeform(req: FreeformApiRequest):
     generator = agent.stream_run(
         user_prompt=req.raw_prompt,
         director_notes=req.director_style_preference,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
         reference_assets=reference_assets,
         character_role=char_role,
     )
@@ -275,6 +302,9 @@ class VideoExecutionRequest(BaseModel):
     session_name: str = ""
     previous_interaction_id: str | None = None
     mock_mode: bool | None = None
+    resolution: str = "720p"
+    first_frame_uri: str | None = None
+    last_frame_uri: str | None = None
 
 
 @app.post("/api/generate-video")
@@ -284,6 +314,9 @@ def generate_video(req: VideoExecutionRequest):
     result = engine.generate_video(
         req.video_config,
         previous_interaction_id=req.previous_interaction_id,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
     )
     return result.to_dict()
 
@@ -295,6 +328,9 @@ def stream_generate_video(req: VideoExecutionRequest):
     generator = engine.stream_generate_video(
         req.video_config,
         previous_interaction_id=req.previous_interaction_id,
+        resolution=req.resolution,
+        first_frame_uri=req.first_frame_uri,
+        last_frame_uri=req.last_frame_uri,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 

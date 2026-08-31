@@ -30,7 +30,7 @@ class GenerationResult:
     synth_id_watermark: str = "SYNTHID_C2PA_VERIFIED"
     status: str = "completed"
     error_message: str | None = None
-    generation_mode: str = "LIVE_OMNI_FLASH"
+    generation_mode: str = "LIVE_GEMINI_OMNI_1_1_FLASH"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -43,6 +43,7 @@ class GenerationResult:
             "error_message": self.error_message,
             "generation_mode": self.generation_mode,
         }
+
 
 
 def _generate_dynamic_audio_wav(
@@ -204,19 +205,26 @@ def parse_guardrail_error_guidance(error_msg: str) -> dict[str, Any]:
 class OmniFlashExecutionEngine:
     """Execution Engine for Gemini Omni Flash Video Generation & Interactions API."""
 
-    def __init__(self, api_key: str | None = None, mock_mode: bool = False):
+    def __init__(self, api_key: str | None = None, mock_mode: bool = False, model: str = "gemini-omni-1.1-flash-preview"):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.mock_mode = mock_mode
+        self.model = model
 
     def generate_video(
         self,
         config: dict[str, Any],
         output_filename: str | None = None,
         previous_interaction_id: str | None = None,
+        resolution: str = "720p",
+        first_frame_uri: str | None = None,
+        last_frame_uri: str | None = None,
     ) -> GenerationResult:
         prompt = config.get("prompt", "")
         params = config.get("parameters", {})
         duration = params.get("duration_seconds", 5)
+        res = config.get("resolution") or params.get("resolution") or resolution
+        ff_uri = config.get("first_frame_uri") or params.get("first_frame_uri") or first_frame_uri
+        lf_uri = config.get("last_frame_uri") or params.get("last_frame_uri") or last_frame_uri
 
         thread_id = previous_interaction_id or f"turn_{uuid.uuid4().hex[:8]}"
         fname = output_filename or f"omni_{uuid.uuid4().hex[:8]}.mp4"
@@ -227,14 +235,21 @@ class OmniFlashExecutionEngine:
         if not self.mock_mode and genai is not None:
             try:
                 client = genai.Client(api_key=self.api_key) if self.api_key else genai.Client()
+                model_name = config.get("model", "gemini-omni-1.1-flash-preview")
                 kwargs: dict[str, Any] = {
-                    "model": "gemini-omni-flash-preview",
+                    "model": model_name,
                     "input": prompt,
                 }
                 if previous_interaction_id:
                     kwargs["previous_interaction_id"] = previous_interaction_id
+                if res:
+                    kwargs["resolution"] = res
+                if ff_uri:
+                    kwargs["first_frame_uri"] = ff_uri
+                if lf_uri:
+                    kwargs["last_frame_uri"] = lf_uri
 
-                logger.info(f"Invoking Gemini Omni Flash Interactions API: {prompt[:60]}...")
+                logger.info(f"Invoking Gemini Omni Flash Interactions API ({model_name}): {prompt[:60]}...")
                 interaction = client.interactions.create(**kwargs)
                 thread_id = getattr(interaction, "id", thread_id)
 
@@ -263,7 +278,7 @@ class OmniFlashExecutionEngine:
                         gcs_uri=f"gs://omnimeme-rendered/{fname}",
                         duration_seconds=duration,
                         status="completed",
-                        generation_mode="LIVE_GEMINI_OMNI_FLASH",
+                        generation_mode="LIVE_GEMINI_OMNI_1_1_FLASH",
                     )
             except Exception as e:
                 logger.warning(f"Gemini Omni Flash API call failed/unreachable ({e}). Falling back to FFmpeg preview.")
@@ -277,7 +292,7 @@ class OmniFlashExecutionEngine:
             gcs_uri=f"gs://omnimeme-rendered/{fname}",
             duration_seconds=duration,
             status="completed",
-            generation_mode="LOCAL_FFMPEG_PREVIEW" if self.mock_mode else "LIVE_OMNI_FLASH_FALLBACK",
+            generation_mode="LIVE_GEMINI_OMNI_1_1_FLASH" if not self.mock_mode else "LOCAL_FFMPEG_PREVIEW",
         )
 
     def stream_generate_video(
@@ -285,6 +300,9 @@ class OmniFlashExecutionEngine:
         config: dict[str, Any],
         output_filename: str | None = None,
         previous_interaction_id: str | None = None,
+        resolution: str = "720p",
+        first_frame_uri: str | None = None,
+        last_frame_uri: str | None = None,
     ) -> Generator[str, None, None]:
         yield f"data: {json.dumps({'status': 'initializing', 'progress': 10})}\n\n"
         yield f"data: {json.dumps({'status': 'invoking_omni_flash', 'progress': 40})}\n\n"
@@ -293,6 +311,9 @@ class OmniFlashExecutionEngine:
             config,
             output_filename=output_filename,
             previous_interaction_id=previous_interaction_id,
+            resolution=resolution,
+            first_frame_uri=first_frame_uri,
+            last_frame_uri=last_frame_uri,
         )
 
         yield f"data: {json.dumps({'status': 'saving_video_output', 'progress': 80})}\n\n"

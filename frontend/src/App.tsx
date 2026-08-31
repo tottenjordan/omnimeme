@@ -125,6 +125,9 @@ export default function App() {
     audio: 'Ambient synth drone, gentle rain patter, metallic unsheathing sound',
     duration_sec: 5,
     aspect_ratio: '16:9',
+    resolution: '720p',
+    first_frame_uri: '',
+    last_frame_uri: '',
     reference_images: [],
     reference_videos: []
   });
@@ -133,6 +136,9 @@ export default function App() {
   const [freeformInput, setFreeformInput] = useState<FreeformInput>({
     raw_prompt: 'A golden retriever wearing aviator sunglasses riding a skateboard down a sunlit hill',
     director_style_preference: 'Upbeat commercial 4K high speed video',
+    resolution: '720p',
+    first_frame_uri: '',
+    last_frame_uri: '',
     reference_images: [],
     reference_videos: []
   });
@@ -288,9 +294,9 @@ export default function App() {
           model: 'imagen-3-turnaround',
           enhanced_prompt: `@Image1: Character Reference\n4-Panel Turnaround Sheet Payload for Character [${char.name} (${char.role_id})]:\n- Front View: Full body neutral standing pose\n- Side Profile: 90 degree lateral perspective\n- 3/4 View: Dynamic hero angle\n- Back View: Wardrobe and rear detail view\nAesthetic: ${(char.aesthetic_tags || []).join(', ')}\nWardrobe Specs: ${char.wardrobe || 'Standard tactical'}${referenceImageUrl ? `\nReference Image Source: ${referenceImageUrl}` : ''}`,
           video_config: {
-            model: 'gemini-omni-flash',
+            model: 'gemini-omni-1.1-flash-preview',
             prompt: `@Image1: Character Reference (4-panel turnaround grid)`,
-            parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30 },
+            parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30, resolution: '720p' },
             reference_assets: [
               {
                 uri: sheetUrl,
@@ -319,9 +325,9 @@ export default function App() {
           model: 'imagen-3-turnaround',
           enhanced_prompt: `@Image1: Character Reference\n4-Panel Turnaround Sheet Payload for Character [${char.name} (${char.role_id})]:\n- Front View: Full body neutral standing pose\n- Side Profile: 90 degree lateral perspective\n- 3/4 View: Dynamic hero angle\n- Back View: Wardrobe and rear detail view\nAesthetic: ${(char.aesthetic_tags || []).join(', ')}\nWardrobe Specs: ${char.wardrobe || 'Standard tactical'}${referenceImageUrl ? `\nReference Image Source: ${referenceImageUrl}` : ''}`,
           video_config: {
-            model: 'gemini-omni-flash',
+            model: 'gemini-omni-1.1-flash-preview',
             prompt: `@Image1: Character Reference (4-panel turnaround grid)`,
-            parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30 },
+            parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30, resolution: '720p' },
             reference_assets: [
               {
                 uri: sheetUrl,
@@ -498,9 +504,9 @@ export default function App() {
     setError(null);
 
     const editConfig: VideoConfig = {
-      model: 'gemini-omni-flash-preview',
+      model: 'gemini-omni-1.1-flash-preview',
       prompt: editPrompt.trim(),
-      parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30 },
+      parameters: { duration_seconds: 5, aspect_ratio: '16:9', fps: 30, resolution: guidedInput.resolution || '720p' },
     };
 
     try {
@@ -518,6 +524,48 @@ export default function App() {
       setEditPrompt('');
     } catch (err: any) {
       setError(err.message || 'Conversational video edit failed');
+    } finally {
+      setIsRenderingVideo(false);
+    }
+  };
+
+  const handleExtendScene = async () => {
+    if (!screeningHistory.length && !videoResult) {
+      setError('Please generate an initial video before extending the scene.');
+      return;
+    }
+    const lastTurn = screeningHistory[0];
+    const threadId = lastTurn?.interaction_thread_id || videoResult?.interaction_thread_id;
+    if (!threadId) return;
+
+    setIsRenderingVideo(true);
+    setError(null);
+
+    const extendConfig: VideoConfig = {
+      model: 'gemini-omni-1.1-flash-preview',
+      prompt: 'Extend scene with continuous action (+10s context window)',
+      parameters: {
+        duration_seconds: 10,
+        aspect_ratio: guidedInput.aspect_ratio || '16:9',
+        fps: 30,
+        resolution: guidedInput.resolution || '720p',
+      },
+    };
+
+    try {
+      const res = await executeVideoGeneration(extendConfig, threadId);
+      const newTurn: ScreeningTurn = {
+        id: `turn_${Date.now()}`,
+        prompt: '⏩ Extended Scene (+10s)',
+        video_url: res.video_url,
+        interaction_thread_id: res.interaction_thread_id,
+        generation_mode: res.generation_mode,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      setScreeningHistory((prev) => [newTurn, ...prev]);
+      setVideoResult(res);
+    } catch (err: any) {
+      setError(err.message || 'Scene extension failed');
     } finally {
       setIsRenderingVideo(false);
     }
@@ -689,10 +737,15 @@ export default function App() {
                   <Sliders size={20} color="#3b82f6" />
                   Structured Directing Builder
                 </>
-              ) : (
+              ) : activeTab === 'freeform' ? (
                 <>
                   <Sparkles size={20} color="#a78bfa" />
                   Natural Language Prompt Input
+                </>
+              ) : (
+                <>
+                  <Film size={20} color="#10b981" />
+                  The Screening Room Reel & History
                 </>
               )}
             </h2>
@@ -850,6 +903,42 @@ export default function App() {
                     <option value="1:1">1:1 (Square Feed)</option>
                   </select>
                 </div>
+                <div className="form-group">
+                  <label className="form-label">Resolution</label>
+                  <select
+                    className="form-select"
+                    value={guidedInput.resolution || '720p'}
+                    onChange={(e) => setGuidedInput({ ...guidedInput, resolution: e.target.value })}
+                  >
+                    <option value="360p">⚡ 360p Fast Draft (60% Faster)</option>
+                    <option value="720p">720p HD</option>
+                    <option value="1080p">1080p Full HD</option>
+                    <option value="4k">4K Ultra HD</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Start Frame GCS URI (Keyframe)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={guidedInput.first_frame_uri || ''}
+                    onChange={(e) => setGuidedInput({ ...guidedInput, first_frame_uri: e.target.value })}
+                    placeholder="gs://bucket/first_frame.png"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Frame GCS URI (Keyframe)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={guidedInput.last_frame_uri || ''}
+                    onChange={(e) => setGuidedInput({ ...guidedInput, last_frame_uri: e.target.value })}
+                    placeholder="gs://bucket/last_frame.png"
+                  />
+                </div>
               </div>
 
               <button type="submit" className="btn-primary" disabled={loading}>
@@ -857,7 +946,7 @@ export default function App() {
                 {loading ? 'Enhancing with Omni Flash Director...' : 'Enhance Video Prompt'}
               </button>
             </form>
-          ) : (
+          ) : activeTab === 'freeform' ? (
             <form onSubmit={handleFreeformSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Quick-Select Saved Character Dropdown */}
               <div className="form-group" style={{ background: 'rgba(167, 139, 250, 0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
@@ -901,6 +990,45 @@ export default function App() {
                 />
               </div>
 
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Resolution</label>
+                  <select
+                    className="form-select"
+                    value={freeformInput.resolution || '720p'}
+                    onChange={(e) => setFreeformInput({ ...freeformInput, resolution: e.target.value })}
+                  >
+                    <option value="360p">⚡ 360p Fast Draft (60% Faster)</option>
+                    <option value="720p">720p HD</option>
+                    <option value="1080p">1080p Full HD</option>
+                    <option value="4k">4K Ultra HD</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Start Frame GCS URI (Keyframe)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={freeformInput.first_frame_uri || ''}
+                    onChange={(e) => setFreeformInput({ ...freeformInput, first_frame_uri: e.target.value })}
+                    placeholder="gs://bucket/first_frame.png"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Frame GCS URI (Keyframe)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={freeformInput.last_frame_uri || ''}
+                    onChange={(e) => setFreeformInput({ ...freeformInput, last_frame_uri: e.target.value })}
+                    placeholder="gs://bucket/last_frame.png"
+                  />
+                </div>
+              </div>
+
               {/* Multimodal Attachments for Freeform */}
               <div className="form-group" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -940,6 +1068,28 @@ export default function App() {
                 {loading ? 'Directing Concept...' : 'Direct Prompt with Omni Flash'}
               </button>
             </form>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#34d399', fontSize: '13px' }}>
+                🎬 10s Multi-Turn Context Window & Conversational Video Timeline
+              </div>
+              {screeningHistory.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>
+                  No screening turns generated yet. Use Guided or Free-form Directing to generate your first video scene!
+                </div>
+              ) : (
+                screeningHistory.map((turn, idx) => (
+                  <div key={turn.id} style={{ background: '#0b0d12', border: '1px solid var(--panel-border)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#9ca3af' }}>
+                      <span style={{ fontWeight: 600, color: '#60a5fa' }}>Turn #{screeningHistory.length - idx}: {turn.timestamp}</span>
+                      <span style={{ fontSize: '11px', background: 'rgba(59, 130, 246, 0.1)', color: '#93c5fd', padding: '2px 6px', borderRadius: '4px' }}>{turn.generation_mode}</span>
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#e5e7eb', margin: 0 }}>{turn.prompt}</p>
+                    <div style={{ fontSize: '11px', color: '#6b7280' }}>Thread ID: {turn.interaction_thread_id}</div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
 
@@ -1057,13 +1207,24 @@ export default function App() {
                     <div>
                       <span>Duration: {videoResult.duration_seconds}s</span> • <span>Mode: {videoResult.generation_mode}</span> • <span>Thread: {videoResult.interaction_thread_id}</span>
                     </div>
-                    <a
-                      href={videoResult.video_url}
-                      download="omnimeme_rendered_video.mp4"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#3b82f6', color: '#ffffff', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '13px' }}
-                    >
-                      ⬇️ Download MP4
-                    </a>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={isRenderingVideo}
+                        onClick={handleExtendScene}
+                        style={{ padding: '6px 14px', fontSize: '13px', background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}
+                      >
+                        ⏩ Extend Scene (+10s)
+                      </button>
+                      <a
+                        href={videoResult.video_url}
+                        download="omnimeme_rendered_video.mp4"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#3b82f6', color: '#ffffff', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none', fontWeight: 600, fontSize: '13px' }}
+                      >
+                        ⬇️ Download MP4
+                      </a>
+                    </div>
                   </div>
 
                   {/* Conversational Editing Form */}

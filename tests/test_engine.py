@@ -27,11 +27,17 @@ def test_guardrail_error_guidance():
 def test_execution_engine_generate_video(tmp_path):
     engine = OmniFlashExecutionEngine(mock_mode=True)
     config = {
-        "model": "gemini-omni-flash-preview",
+        "model": "gemini-omni-1.1-flash-preview",
         "prompt": "A futuristic motorcycle racing down a neon highway",
-        "parameters": {"duration_seconds": 3, "aspect_ratio": "16:9"},
+        "parameters": {"duration_seconds": 3, "aspect_ratio": "16:9", "resolution": "1080p"},
     }
-    result = engine.generate_video(config, output_filename="test_moto.mp4")
+    result = engine.generate_video(
+        config,
+        output_filename="test_moto.mp4",
+        resolution="1080p",
+        first_frame_uri="gs://bucket/start.png",
+        last_frame_uri="gs://bucket/end.png",
+    )
     assert result.status == "completed"
     assert result.video_url.startswith("/static/rendered/")
     assert result.duration_seconds == 3
@@ -57,7 +63,7 @@ def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
 
     class FakeInteractionsClient:
         def create(self, **kwargs):
-            assert kwargs["model"] == "gemini-omni-flash-preview"
+            assert kwargs["model"] == "gemini-omni-1.1-flash-preview"
             assert kwargs["input"] == "Test prompt"
             assert kwargs.get("previous_interaction_id") == "prev_turn_1"
             return FakeInteraction()
@@ -80,5 +86,5 @@ def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
 
     assert res.status == "completed"
     assert res.interaction_thread_id == "turn_live_999"
-    assert res.generation_mode == "LIVE_GEMINI_OMNI_FLASH"
+    assert res.generation_mode == "LIVE_GEMINI_OMNI_1_1_FLASH"
 

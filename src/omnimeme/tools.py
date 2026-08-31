@@ -61,6 +61,9 @@ def generate_video_config(
     duration_sec: int = 5,
     aspect_ratio: str = "16:9",
     reference_assets: list[dict[str, Any]] | None = None,
+    resolution: str = "720p",
+    first_frame_uri: str | None = None,
+    last_frame_uri: str | None = None,
 ) -> dict[str, Any]:
     """Generates the API configuration payload for Gemini Omni Flash video generation.
 
@@ -69,16 +72,27 @@ def generate_video_config(
         duration_sec: Duration in seconds (1-10).
         aspect_ratio: Video aspect ratio ('16:9', '9:16', '1:1').
         reference_assets: Optional list of reference images/videos.
+        resolution: Video resolution ('360p', '720p', '1080p', '4k').
+        first_frame_uri: Optional first frame keyframe GCS URI.
+        last_frame_uri: Optional last frame keyframe GCS URI.
     """
     payload: dict[str, Any] = {
-        "model": "gemini-omni-flash-preview",
+        "model": "gemini-omni-1.1-flash-preview",
         "prompt": enhanced_prompt,
+        "resolution": resolution,
         "parameters": {
             "duration_seconds": duration_sec,
             "aspect_ratio": aspect_ratio,
             "fps": 24,
+            "resolution": resolution,
         },
     }
+    if first_frame_uri:
+        payload["first_frame_uri"] = first_frame_uri
+        payload["parameters"]["first_frame_uri"] = first_frame_uri
+    if last_frame_uri:
+        payload["last_frame_uri"] = last_frame_uri
+        payload["parameters"]["last_frame_uri"] = last_frame_uri
     if reference_assets:
         payload["reference_assets"] = reference_assets
     return payload

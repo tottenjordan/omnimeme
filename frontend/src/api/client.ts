@@ -26,6 +26,9 @@ export interface GuidedInput {
   audio?: string;
   duration_sec?: number;
   aspect_ratio?: string;
+  resolution?: string;
+  first_frame_uri?: string;
+  last_frame_uri?: string;
   reference_images?: MediaAttachment[];
   reference_videos?: MediaAttachment[];
 }
@@ -34,6 +37,9 @@ export interface FreeformInput {
   character_role_id?: string;
   raw_prompt: string;
   director_style_preference?: string;
+  resolution?: string;
+  first_frame_uri?: string;
+  last_frame_uri?: string;
   reference_images?: MediaAttachment[];
   reference_videos?: MediaAttachment[];
 }
@@ -45,7 +51,13 @@ export interface VideoConfig {
     duration_seconds: number;
     aspect_ratio: string;
     fps: number;
+    resolution?: string;
+    first_frame_uri?: string;
+    last_frame_uri?: string;
   };
+  resolution?: string;
+  first_frame_uri?: string;
+  last_frame_uri?: string;
   reference_assets?: MediaAttachment[];
 }
 

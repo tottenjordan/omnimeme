@@ -13,7 +13,7 @@ class OmniDirectorAgent:
     def __init__(
         self,
         name: str = "omni_director",
-        model: str = "gemini-omni-flash-preview",
+        model: str = "gemini-omni-1.1-flash-preview",
         project_id: str | None = None,
         location: str | None = "us-central1",
     ):
@@ -29,6 +29,9 @@ class OmniDirectorAgent:
         director_notes: str = "",
         duration_sec: int = 5,
         aspect_ratio: str = "16:9",
+        resolution: str = "720p",
+        first_frame_uri: str | None = None,
+        last_frame_uri: str | None = None,
         reference_assets: list[dict[str, Any]] | None = None,
         character_role: Any | None = None,
     ) -> dict[str, Any]:
@@ -49,6 +52,9 @@ class OmniDirectorAgent:
             enhanced["enhanced_prompt"],
             duration_sec=duration_sec,
             aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            first_frame_uri=first_frame_uri,
+            last_frame_uri=last_frame_uri,
             reference_assets=reference_assets,
         )
         return {
@@ -64,6 +70,9 @@ class OmniDirectorAgent:
         director_notes: str = "",
         duration_sec: int = 5,
         aspect_ratio: str = "16:9",
+        resolution: str = "720p",
+        first_frame_uri: str | None = None,
+        last_frame_uri: str | None = None,
         reference_assets: list[dict[str, Any]] | None = None,
         character_role: Any | None = None,
     ):
@@ -97,6 +106,9 @@ class OmniDirectorAgent:
             full_prompt,
             duration_sec=duration_sec,
             aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            first_frame_uri=first_frame_uri,
+            last_frame_uri=last_frame_uri,
             reference_assets=reference_assets,
         )
         done_event = {
