@@ -41,8 +41,13 @@ import {
   streamFreeform,
   fetchArchetypePresets,
   concatenateMasterFilm,
-  CharacterArchetypePreset
+  CharacterArchetypePreset,
+  fetchMashupBundles,
+  generateMashupStoryboard,
+  MashupBundle,
+  ProductInfo
 } from './api/client';
+
 
 
 export interface ScreeningTurn {
@@ -131,7 +136,7 @@ const DEFAULT_ARCHETYPE_PRESETS: CharacterArchetypePreset[] = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'guided' | 'freeform' | 'scriptwriter' | 'screening'>('guided');
+  const [activeTab, setActiveTab] = useState<'guided' | 'freeform' | 'scriptwriter' | 'mashup' | 'screening'>('guided');
   const [apiConnected, setApiConnected] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +159,122 @@ export default function App() {
   const [isConcatenating, setIsConcatenating] = useState<boolean>(false);
   const [masterFilmUrl, setMasterFilmUrl] = useState<string | null>(null);
   const [archetypePresets, setArchetypePresets] = useState<CharacterArchetypePreset[]>(DEFAULT_ARCHETYPE_PRESETS);
+
+  // Parody & Mashup Studio State
+  const [mashupCharA, setMashupCharA] = useState<string>('space_lord');
+  const [mashupCharB, setMashupCharB] = useState<string>('chef_supreme');
+  const [mashupGenre, setMashupGenre] = useState<string>('Sci-Fi Reality Cooking Show');
+  const [parodyTone, setParodyTone] = useState<string>('Absurdist Satire');
+  const [productName, setProductName] = useState<string>('Lightsaber Blender 9000');
+  const [productDesc, setProductDesc] = useState<string>('Plasma-powered countertop blender that purees ingredients at lightspeed.');
+  const [productImgUrl, setProductImgUrl] = useState<string>('gs://omnimeme-assets/products/lightsaber_blender.png');
+  const [productTagline, setProductTagline] = useState<string>('Puree with the Force!');
+  const [showProductAccordion, setShowProductAccordion] = useState<boolean>(true);
+  const [mashupBundles, setMashupBundles] = useState<MashupBundle[]>([]);
+  const [mashupStoryboard, setMashupStoryboard] = useState<StoryboardResponse | null>(null);
+  const [isGeneratingMashup, setIsGeneratingMashup] = useState<boolean>(false);
+  const [isRenderingMashup, setIsRenderingMashup] = useState<boolean>(false);
+  const [mashupRenderedScenes, setMashupRenderedScenes] = useState<Record<number, GenerationResult>>({});
+  const [isConcatenatingMashup, setIsConcatenatingMashup] = useState<boolean>(false);
+  const [mashupMasterFilmUrl, setMashupMasterFilmUrl] = useState<string | null>(null);
+
+  const handleApplyMashupBundle = (bundle: MashupBundle) => {
+    if (bundle.character_a?.role_id) setMashupCharA(bundle.character_a.role_id);
+    if (bundle.character_b?.role_id) setMashupCharB(bundle.character_b.role_id);
+    if (bundle.mashup_genre) setMashupGenre(bundle.mashup_genre);
+    if (bundle.parody_tone) setParodyTone(bundle.parody_tone);
+    if (bundle.product) {
+      setProductName(bundle.product.name || '');
+      setProductDesc(bundle.product.description || '');
+      setProductImgUrl(bundle.product.image_url || '');
+      setProductTagline(bundle.product.tagline || '');
+      setShowProductAccordion(true);
+    }
+  };
+
+  const handleMashupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mashupCharA || !mashupCharB) {
+      setError('Please select both Character A and Character B.');
+      return;
+    }
+    setIsGeneratingMashup(true);
+    setError(null);
+    setMashupRenderedScenes({});
+    setMashupMasterFilmUrl(null);
+    try {
+      const res = await generateMashupStoryboard({
+        character_a_id: mashupCharA,
+        character_b_id: mashupCharB,
+        mashup_genre: mashupGenre.trim(),
+        parody_tone: parodyTone.trim(),
+        product: productName.trim()
+          ? {
+              name: productName.trim(),
+              description: productDesc.trim(),
+              image_url: productImgUrl.trim(),
+              tagline: productTagline.trim(),
+            }
+          : undefined,
+        scene_count: 4,
+      });
+      setMashupStoryboard(res);
+    } catch (err: any) {
+      setError(err.message || 'Mashup storyboard generation failed');
+    } finally {
+      setIsGeneratingMashup(false);
+    }
+  };
+
+  const handleRenderAllMashupScenes = async () => {
+    if (!mashupStoryboard?.storyboard?.scenes?.length) return;
+    setIsRenderingMashup(true);
+    setError(null);
+    for (const scene of mashupStoryboard.storyboard.scenes) {
+      try {
+        const res = await executeVideoGeneration(scene.video_config);
+        setMashupRenderedScenes((prev) => ({ ...prev, [scene.scene_number]: res }));
+      } catch (err: any) {
+        console.error(`Error rendering mashup scene ${scene.scene_number}:`, err);
+      }
+    }
+    setIsRenderingMashup(false);
+  };
+
+  const handleRenderSingleMashupScene = async (sceneNumber: number, config: VideoConfig) => {
+    setError(null);
+    try {
+      const res = await executeVideoGeneration(config);
+      setMashupRenderedScenes((prev) => ({ ...prev, [sceneNumber]: res }));
+    } catch (err: any) {
+      setError(err.message || `Failed to render scene ${sceneNumber}`);
+    }
+  };
+
+  const handleConcatenateMashupMasterFilm = async () => {
+    if (!mashupStoryboard?.storyboard?.scenes?.length) return;
+    setIsConcatenatingMashup(true);
+    setError(null);
+    try {
+      const urls = mashupStoryboard.storyboard.scenes.map(
+        (scene) => mashupRenderedScenes[scene.scene_number]?.video_url || `/static/rendered/scene_${scene.scene_number}.mp4`
+      );
+      const lowerThirds = mashupStoryboard.storyboard.scenes.map(
+        (scene) => scene.lower_third_title || { name: `Scene ${scene.scene_number}` }
+      );
+      const sponsorCallout = productName.trim()
+        ? `${productName.trim()}${productTagline.trim() ? ` - ${productTagline.trim()}` : ''}`
+        : undefined;
+
+      const res = await concatenateMasterFilm(urls, 'mashup_parody_master', lowerThirds, sponsorCallout);
+      setMashupMasterFilmUrl(res.master_video_url);
+    } catch (err: any) {
+      setError(err.message || 'Mashup master film export failed');
+    } finally {
+      setIsConcatenatingMashup(false);
+    }
+  };
+
 
   const handleConcatenateMasterFilm = async () => {
     if (!storyboard?.storyboard?.scenes?.length) return;
@@ -318,7 +439,16 @@ export default function App() {
         }
       })
       .catch(() => {});
+
+    fetchMashupBundles()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setMashupBundles(data);
+        }
+      })
+      .catch(() => {});
   }, []);
+
 
 
   const addGuidedImage = () => {
@@ -875,6 +1005,16 @@ export default function App() {
           🎭 Multi-Scene Scriptwriter
         </button>
         <button
+          className={`tab-button ${activeTab === 'mashup' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('mashup');
+            setError(null);
+          }}
+        >
+          <Sparkles size={16} color="#eab308" />
+          🎭 Parody & Mashup Studio
+        </button>
+        <button
           className={`tab-button ${activeTab === 'screening' ? 'active' : ''}`}
           onClick={() => {
             setActiveTab('screening');
@@ -885,6 +1025,7 @@ export default function App() {
           🎬 The Screening Room
         </button>
       </div>
+
 
 
       {/* Main Content Grid */}
@@ -908,12 +1049,18 @@ export default function App() {
                   <Clapperboard size={20} color="#ec4899" />
                   Creative Concept & Storyboard Generator
                 </>
+              ) : activeTab === 'mashup' ? (
+                <>
+                  <Sparkles size={20} color="#eab308" />
+                  Parody & Mashup Studio Builder
+                </>
               ) : (
                 <>
                   <Film size={20} color="#10b981" />
                   The Screening Room Reel & History
                 </>
               )}
+
             </h2>
           </div>
 
@@ -1380,7 +1527,186 @@ export default function App() {
                 {isGeneratingStoryboard ? 'Generating Storyboard...' : '✨ Generate Multi-Scene Storyboard'}
               </button>
             </form>
+          ) : activeTab === 'mashup' ? (
+            <form onSubmit={handleMashupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* 1-Click Preset Bundles */}
+              <div className="form-group" style={{ background: 'rgba(234, 179, 8, 0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                <label className="form-label" style={{ color: '#facc15', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Zap size={14} color="#eab308" />
+                  1-Click Parody Preset Bundles
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginTop: '6px' }}>
+                  {mashupBundles.map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => handleApplyMashupBundle(b)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(234, 179, 8, 0.3)',
+                        color: '#fef08a',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{b.title}</span>
+                        {b.product && <span style={{ fontSize: '11px', background: 'rgba(234, 179, 8, 0.2)', padding: '1px 6px', borderRadius: '4px' }}>🛒 {b.product.name}</span>}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{b.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Character A Selector */}
+              <div className="form-group">
+                <label className="form-label">Character A (Protagonist) *</label>
+                <select
+                  className="form-select"
+                  value={mashupCharA}
+                  onChange={(e) => setMashupCharA(e.target.value)}
+                  required
+                >
+                  <option value="">-- Select Character A --</option>
+                  <option value="space_lord">Space Lord</option>
+                  <option value="cyberpunk_ronin">Cyberpunk Ronin</option>
+                  <option value="scifi_captain">Sci-Fi Captain</option>
+                  <option value="fantasy_sorcerer">Fantasy Sorcerer</option>
+                  {characters.map((c) => (
+                    <option key={`a_${c.role_id}`} value={c.role_id}>
+                      {c.name} ({c.role_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Character B Selector */}
+              <div className="form-group">
+                <label className="form-label">Character B (Challenger / Antagonist) *</label>
+                <select
+                  className="form-select"
+                  value={mashupCharB}
+                  onChange={(e) => setMashupCharB(e.target.value)}
+                  required
+                >
+                  <option value="">-- Select Character B --</option>
+                  <option value="chef_supreme">Chef Supreme</option>
+                  <option value="film_noir_detective">Film Noir Detective</option>
+                  <option value="anime_mech_pilot">Anime Mech Pilot</option>
+                  {characters.map((c) => (
+                    <option key={`b_${c.role_id}`} value={c.role_id}>
+                      {c.name} ({c.role_id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mashup Genre */}
+              <div className="form-group">
+                <label className="form-label">Mashup Genre</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={mashupGenre}
+                  onChange={(e) => setMashupGenre(e.target.value)}
+                  placeholder="e.g. Sci-Fi Reality Cooking Show"
+                />
+              </div>
+
+              {/* Parody Tone */}
+              <div className="form-group">
+                <label className="form-label">Parody Tone</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={parodyTone}
+                  onChange={(e) => setParodyTone(e.target.value)}
+                  placeholder="e.g. Absurdist Satire, Over-The-Top Anime"
+                />
+              </div>
+
+              {/* Product Reference Accordion */}
+              <div style={{ border: '1px solid var(--panel-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowProductAccordion(!showProductAccordion)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#131822',
+                    border: 'none',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    display: 'flex',
+                    justify: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>🛒 Product Commercial Parody Reference (Optional)</span>
+                  <span>{showProductAccordion ? '▲' : '▼'}</span>
+                </button>
+
+                {showProductAccordion && (
+                  <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px', background: '#0b0d12' }}>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '12px' }}>Product Name</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={productName}
+                        onChange={(e) => setProductName(e.target.value)}
+                        placeholder="e.g. Lightsaber Blender 9000"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '12px' }}>Product Tagline</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={productTagline}
+                        onChange={(e) => setProductTagline(e.target.value)}
+                        placeholder="e.g. Puree with the Force!"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '12px' }}>Product Description</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={productDesc}
+                        onChange={(e) => setProductDesc(e.target.value)}
+                        placeholder="e.g. Plasma-powered countertop blender"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label" style={{ fontSize: '12px' }}>Product Image URL / GCS URI</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={productImgUrl}
+                        onChange={(e) => setProductImgUrl(e.target.value)}
+                        placeholder="e.g. gs://omnimeme-assets/products/blender.png"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button type="submit" className="btn-primary" disabled={isGeneratingMashup} style={{ background: 'linear-gradient(135deg, #eab308, #ca8a04)' }}>
+                <Sparkles size={18} />
+                {isGeneratingMashup ? 'Generating Parody Storyboard...' : '🎭 Generate Parody Mashup Storyboard'}
+              </button>
+            </form>
           ) : (
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#34d399', fontSize: '13px' }}>
                 🎬 40-Second Multi-Turn Context Window & Conversational Video Timeline
@@ -1473,6 +1799,11 @@ export default function App() {
                   <Clapperboard size={20} color="#ec4899" />
                   Multi-Scene Storyboard & A2A Federation
                 </>
+              ) : activeTab === 'mashup' ? (
+                <>
+                  <Sparkles size={20} color="#eab308" />
+                  Parody & Mashup Studio Storyboard
+                </>
               ) : (
                 <>
                   <Video size={20} color="#10b981" />
@@ -1480,7 +1811,7 @@ export default function App() {
                 </>
               )}
             </h2>
-            {result && activeTab !== 'scriptwriter' && (
+            {result && activeTab !== 'scriptwriter' && activeTab !== 'mashup' && (
               <button
                 onClick={() => copyToClipboard(result.result.enhanced_prompt)}
                 style={{ background: 'transparent', border: '1px solid var(--panel-border)', color: 'var(--text-muted)', borderRadius: '6px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}
@@ -1491,7 +1822,119 @@ export default function App() {
             )}
           </div>
 
-          {activeTab === 'scriptwriter' ? (
+          {activeTab === 'mashup' ? (
+            mashupStoryboard ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(234, 179, 8, 0.1)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                  <div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#fef08a' }}>
+                      Concept: {mashupStoryboard.storyboard.concept}
+                    </h3>
+                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                      Genre: {mashupStoryboard.storyboard.mashup_genre || mashupGenre} | Tone: {mashupStoryboard.storyboard.parody_tone || parodyTone}
+                      {mashupStoryboard.storyboard.product?.name && ` | Product: ${mashupStoryboard.storyboard.product.name}`}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={isRenderingMashup}
+                      onClick={handleRenderAllMashupScenes}
+                      style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #eab308, #ca8a04)' }}
+                    >
+                      <Film size={16} />
+                      {isRenderingMashup ? 'Rendering Scenes...' : '🎬 Render All Mashup Scenes'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={isConcatenatingMashup}
+                      onClick={handleConcatenateMashupMasterFilm}
+                      style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #2563eb, #3b82f6)' }}
+                    >
+                      <Film size={16} />
+                      {isConcatenatingMashup ? 'Exporting Master MP4...' : '🎬 Export Master Mashup MP4'}
+                    </button>
+                  </div>
+                </div>
+
+                {mashupMasterFilmUrl && (
+                  <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ color: '#60a5fa', fontWeight: 600, fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CheckCircle2 size={16} color="#34d399" />
+                      Master Parody Film Exported with Lower-Third Titles & Sponsor Banner!
+                    </div>
+                    <video src={mashupMasterFilmUrl} controls autoPlay loop style={{ width: '100%', borderRadius: '6px', border: '1px solid var(--panel-border)' }} />
+                    <a href={mashupMasterFilmUrl} download target="_blank" rel="noreferrer" style={{ color: '#93c5fd', fontSize: '13px', textDecoration: 'underline' }}>
+                      Download Master Parody MP4 ({mashupMasterFilmUrl})
+                    </a>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {mashupStoryboard.storyboard.scenes.map((scene: StoryboardScene) => (
+                    <div
+                      key={scene.scene_number}
+                      style={{
+                        background: '#0f1117',
+                        border: '1px solid var(--panel-border)',
+                        borderRadius: '8px',
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#fef08a', margin: 0 }}>
+                          {scene.title}
+                        </h4>
+                        {scene.lower_third_title && (
+                          <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                            🎭 {scene.lower_third_title.name} ({scene.lower_third_title.role})
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '13px', color: '#e5e7eb' }}>
+                        <strong>Visual:</strong> {scene.visual_description}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px', color: '#9ca3af' }}>
+                        <div><strong>Camera:</strong> {scene.camera_instruction}</div>
+                        <div><strong>Audio:</strong> {scene.audio_cue}</div>
+                      </div>
+
+                      {mashupRenderedScenes[scene.scene_number] ? (
+                        <div style={{ background: '#07090e', padding: '10px', borderRadius: '6px', border: '1px solid #1e293b' }}>
+                          <div style={{ fontSize: '12px', color: '#34d399', fontWeight: 600, marginBottom: '6px' }}>
+                            ✓ Rendered Scene Clip #{scene.scene_number}
+                          </div>
+                          <video src={mashupRenderedScenes[scene.scene_number].video_url} controls style={{ width: '100%', borderRadius: '4px' }} />
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={() => handleRenderSingleMashupScene(scene.scene_number, scene.video_config)}
+                          style={{ padding: '6px 12px', fontSize: '12px', background: 'linear-gradient(135deg, #475569, #334155)', alignSelf: 'flex-start' }}
+                        >
+                          🎬 Render Scene Clip #{scene.scene_number}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <Sparkles size={36} color="#eab308" />
+                <p>Select characters, mashup genre, and tone to generate a 30-60s Parody & Mashup Storyboard!</p>
+              </div>
+            )
+          ) : activeTab === 'scriptwriter' ? (
+
             storyboard ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(236, 72, 153, 0.1)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
