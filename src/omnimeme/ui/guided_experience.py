@@ -37,6 +37,7 @@ class GuidedPromptInput:
     last_frame_uri: str | None = None
     reference_images: list[MediaAttachment] = field(default_factory=list)
     reference_videos: list[MediaAttachment] = field(default_factory=list)
+    motion_preset: str | None = None
 
     def validate(self) -> bool:
         return bool(self.subject and self.subject.strip())
@@ -99,6 +100,7 @@ def process_guided_request(
         last_frame_uri=input_data.last_frame_uri,
         reference_assets=reference_assets,
         character_role=character_role,
+        motion_preset=input_data.motion_preset,
     )
     return {
         "interface": "guided_experience",

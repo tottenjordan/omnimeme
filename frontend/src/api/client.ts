@@ -31,6 +31,7 @@ export interface GuidedInput {
   last_frame_uri?: string;
   reference_images?: MediaAttachment[];
   reference_videos?: MediaAttachment[];
+  motion_preset?: string;
 }
 
 export interface FreeformInput {
@@ -42,6 +43,7 @@ export interface FreeformInput {
   last_frame_uri?: string;
   reference_images?: MediaAttachment[];
   reference_videos?: MediaAttachment[];
+  motion_preset?: string;
 }
 
 export interface VideoConfig {
@@ -54,11 +56,13 @@ export interface VideoConfig {
     resolution?: string;
     first_frame_uri?: string;
     last_frame_uri?: string;
+    motion_preset?: string;
   };
   resolution?: string;
   first_frame_uri?: string;
   last_frame_uri?: string;
   reference_assets?: MediaAttachment[];
+  motion_preset?: string;
 }
 
 export interface DirectingResponse {

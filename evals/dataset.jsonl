@@ -1,2 +1,4 @@
 {"input": "A cinematic shot of a samurai standing in cherry blossoms", "expected_elements": ["Subject", "Action", "Camera Angle", "Lighting", "Style"]}
 {"input": "Guided: Subject=Drone flight, Action=Soaring over mountains, Camera=FPV tilt up", "expected_elements": ["Subject", "Camera Angle & Movement", "Lighting & Atmosphere"]}
+{"input": "Fast draft test shot of a sports car", "resolution": "360p", "expected_elements": ["Subject", "360p"]}
+{"input": "Tom Cruise riding a motorcycle in cyberpunk city", "motion_preset": "orbital", "expected_elements": ["an intense action hero with a confident grin", "360-degree orbital camera rotation."]}

@@ -5,3 +5,30 @@ metrics:
   - name: taxonomy_compliance
     type: llm_judge
     criteria: "Check whether the output prompt includes Subject, Action & Motion, Camera Angle & Movement, and Lighting."
+  - name: resolution_draft_validation
+    type: rule_check
+    criteria: "Validate 360p fast draft resolution setting in generated video config."
+  - name: motion_preset_compliance
+    type: rule_check
+    criteria: "Validate motion preset camera movement inclusion (dolly_zoom, orbital, whip_pan, seamless_loop)."
+  - name: theme_sanitization_check
+    type: rule_check
+    criteria: "Verify real names and trademarked entities are sanitized to visual descriptors."
+
+test_cases:
+  - id: draft_resolution_360p
+    input: "Fast draft test shot of a sports car"
+    resolution: "360p"
+    expected_resolution: "360p"
+  - id: keyframe_motion_orbital
+    input: "Cyberpunk skyline shot"
+    motion_preset: "orbital"
+    expected_camera: "360-degree orbital camera rotation."
+  - id: keyframe_motion_dolly_zoom
+    input: "Dramatic character close up"
+    motion_preset: "dolly_zoom"
+    expected_camera: "Vertigo dolly zoom camera movement."
+  - id: theme_sanitization_celebrity
+    input: "Tom Cruise riding a motorcycle in cyberpunk city"
+    theme: "cyberpunk"
+    expected_sanitized_subject: "an intense action hero with a confident grin"

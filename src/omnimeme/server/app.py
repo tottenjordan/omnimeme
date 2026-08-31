@@ -84,6 +84,7 @@ class GuidedApiRequest(BaseModel):
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
     character_role_id: str | None = None
+    motion_preset: str | None = None
 
 
 class FreeformApiRequest(BaseModel):
@@ -95,6 +96,7 @@ class FreeformApiRequest(BaseModel):
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
     character_role_id: str | None = None
+    motion_preset: str | None = None
 
 
 def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAttachment]:
@@ -201,6 +203,7 @@ def enhance_guided(req: GuidedApiRequest):
         last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
+        motion_preset=req.motion_preset,
     )
     char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
     res = process_guided_request(inp, agent, character_role=char_role)
@@ -220,6 +223,7 @@ def enhance_freeform(req: FreeformApiRequest):
         last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
+        motion_preset=req.motion_preset,
     )
     char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
     res = process_freeform_request(inp, agent, character_role=char_role)
@@ -248,6 +252,7 @@ def stream_guided(req: GuidedApiRequest):
         last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
+        motion_preset=req.motion_preset,
     )
     raw_directive = inp.to_raw_directive()
     reference_assets = inp.get_all_reference_assets()
@@ -263,6 +268,7 @@ def stream_guided(req: GuidedApiRequest):
         last_frame_uri=req.last_frame_uri,
         reference_assets=reference_assets,
         character_role=char_role,
+        motion_preset=req.motion_preset,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 
@@ -281,6 +287,7 @@ def stream_freeform(req: FreeformApiRequest):
         last_frame_uri=req.last_frame_uri,
         reference_images=_parse_media_attachments(req.reference_images),
         reference_videos=_parse_media_attachments(req.reference_videos),
+        motion_preset=req.motion_preset,
     )
     reference_assets = inp.get_all_reference_assets()
     char_role = global_vault.get_character(req.character_role_id) if req.character_role_id else None
@@ -293,6 +300,7 @@ def stream_freeform(req: FreeformApiRequest):
         last_frame_uri=req.last_frame_uri,
         reference_assets=reference_assets,
         character_role=char_role,
+        motion_preset=req.motion_preset,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 

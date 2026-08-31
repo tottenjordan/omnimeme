@@ -175,8 +175,12 @@ def ensure_rendered_video(
                     pass
 
 
-def parse_guardrail_error_guidance(error_msg: str) -> dict[str, Any]:
+def parse_guardrail_error_guidance(
+    error_msg: str, raw_subject: str = "", theme: str = "cinematic"
+) -> dict[str, Any]:
     """Parses safety policy errors into actionable guidance."""
+    from omnimeme.tools import sanitize_character_concept
+
     triggers = []
     err_lower = error_msg.lower()
 
@@ -189,14 +193,18 @@ def parse_guardrail_error_guidance(error_msg: str) -> dict[str, Any]:
     if not triggers:
         triggers.append("real_people_likeness")
 
+    sanitized = sanitize_character_concept(raw_subject or error_msg, theme=theme)
+
     return {
         "triggers": triggers,
         "user_guidance": "Review character names and references to avoid policy blocks.",
+        "sanitized_concept": sanitized,
         "suggested_actions": [
             {
                 "action": "sanitize_real_names",
                 "label": "Sanitize Character Names",
                 "description": "Replace real names with stylized visual descriptors.",
+                "sanitized_concept": sanitized,
             }
         ],
     }

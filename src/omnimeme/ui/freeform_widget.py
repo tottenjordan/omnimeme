@@ -16,6 +16,7 @@ class FreeformInput:
     last_frame_uri: str | None = None
     reference_images: list[MediaAttachment] = field(default_factory=list)
     reference_videos: list[MediaAttachment] = field(default_factory=list)
+    motion_preset: str | None = None
 
     def validate(self) -> bool:
         return bool(self.raw_prompt and self.raw_prompt.strip())
@@ -52,6 +53,7 @@ def process_freeform_request(
         last_frame_uri=input_data.last_frame_uri,
         reference_assets=reference_assets,
         character_role=character_role,
+        motion_preset=input_data.motion_preset,
     )
     return {
         "interface": "freeform_widget",

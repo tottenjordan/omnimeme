@@ -34,6 +34,8 @@ class OmniDirectorAgent:
         last_frame_uri: str | None = None,
         reference_assets: list[dict[str, Any]] | None = None,
         character_role: Any | None = None,
+        motion_preset: str | None = None,
+        theme: str = "cinematic",
     ) -> dict[str, Any]:
         if character_role and getattr(character_role, "turnaround_sheet_url", None):
             ref_asset = {
@@ -47,7 +49,13 @@ class OmniDirectorAgent:
                 reference_assets = list(reference_assets)
             reference_assets.append(ref_asset)
 
-        enhanced = enhance_video_prompt(user_prompt, director_notes, character_role=character_role)
+        enhanced = enhance_video_prompt(
+            user_prompt,
+            director_notes,
+            character_role=character_role,
+            motion_preset=motion_preset,
+            theme=theme,
+        )
         config = generate_video_config(
             enhanced["enhanced_prompt"],
             duration_sec=duration_sec,
@@ -56,6 +64,7 @@ class OmniDirectorAgent:
             first_frame_uri=first_frame_uri,
             last_frame_uri=last_frame_uri,
             reference_assets=reference_assets,
+            motion_preset=motion_preset,
         )
         return {
             "agent_name": self.name,
@@ -75,6 +84,8 @@ class OmniDirectorAgent:
         last_frame_uri: str | None = None,
         reference_assets: list[dict[str, Any]] | None = None,
         character_role: Any | None = None,
+        motion_preset: str | None = None,
+        theme: str = "cinematic",
     ):
         """Yields SSE events for token streaming and final result payload."""
         import json
@@ -95,7 +106,11 @@ class OmniDirectorAgent:
 
         accumulated = []
         for chunk in stream_enhance_video_prompt(
-            user_prompt, director_notes, character_role=character_role
+            user_prompt,
+            director_notes,
+            character_role=character_role,
+            motion_preset=motion_preset,
+            theme=theme,
         ):
             accumulated.append(chunk)
             token_event = {"type": "token", "chunk": chunk}
@@ -110,6 +125,7 @@ class OmniDirectorAgent:
             first_frame_uri=first_frame_uri,
             last_frame_uri=last_frame_uri,
             reference_assets=reference_assets,
+            motion_preset=motion_preset,
         )
         done_event = {
             "type": "done",

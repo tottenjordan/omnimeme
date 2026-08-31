@@ -129,7 +129,8 @@ export default function App() {
     first_frame_uri: '',
     last_frame_uri: '',
     reference_images: [],
-    reference_videos: []
+    reference_videos: [],
+    motion_preset: ''
   });
 
   // Free-form State
@@ -140,7 +141,8 @@ export default function App() {
     first_frame_uri: '',
     last_frame_uri: '',
     reference_images: [],
-    reference_videos: []
+    reference_videos: [],
+    motion_preset: ''
   });
 
   // Temporary input state for attachments
@@ -826,6 +828,48 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Motion Preset Quick Selector */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Zap size={14} color="#60a5fa" />
+                  Motion Preset Quick Selector
+                </label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'dolly_zoom', label: '🎥 Dolly Zoom' },
+                    { id: 'orbital', label: '🔄 360° Orbit' },
+                    { id: 'whip_pan', label: '⚡ Whip Pan' },
+                    { id: 'seamless_loop', label: '🔁 Loop' },
+                  ].map((preset) => {
+                    const isSelected = guidedInput.motion_preset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          setGuidedInput({
+                            ...guidedInput,
+                            motion_preset: isSelected ? '' : preset.id,
+                          })
+                        }
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid #3b82f6' : '1px solid var(--panel-border)',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                          color: isSelected ? '#60a5fa' : 'var(--text-main)',
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Multimodal Media Attachments */}
               <div className="form-group" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px', borderRadius: '8px', border: '1px solid var(--panel-border)' }}>
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -990,6 +1034,48 @@ export default function App() {
                 />
               </div>
 
+              {/* Motion Preset Quick Selector */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Zap size={14} color="#a78bfa" />
+                  Motion Preset Quick Selector
+                </label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'dolly_zoom', label: '🎥 Dolly Zoom' },
+                    { id: 'orbital', label: '🔄 360° Orbit' },
+                    { id: 'whip_pan', label: '⚡ Whip Pan' },
+                    { id: 'seamless_loop', label: '🔁 Loop' },
+                  ].map((preset) => {
+                    const isSelected = freeformInput.motion_preset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          setFreeformInput({
+                            ...freeformInput,
+                            motion_preset: isSelected ? '' : preset.id,
+                          })
+                        }
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid #a78bfa' : '1px solid var(--panel-border)',
+                          background: isSelected ? 'rgba(167, 139, 250, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                          color: isSelected ? '#c084fc' : 'var(--text-main)',
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Resolution</label>
@@ -1071,8 +1157,67 @@ export default function App() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#34d399', fontSize: '13px' }}>
-                🎬 10s Multi-Turn Context Window & Conversational Video Timeline
+                🎬 40-Second Multi-Turn Context Window & Conversational Video Timeline
               </div>
+
+              {/* 40-Second Screening Room Timeline Scrubber */}
+              {(() => {
+                const cumulativeDuration = Math.min(40, screeningHistory.length * 10);
+                const progressPct = (cumulativeDuration / 40) * 100;
+                const turnBadges = [
+                  { label: '0–10s', turnIndex: 0 },
+                  { label: '10–20s', turnIndex: 1 },
+                  { label: '20–30s', turnIndex: 2 },
+                  { label: '30–40s', turnIndex: 3 },
+                ];
+                return (
+                  <div style={{ background: '#0b0d12', padding: '14px', borderRadius: '8px', border: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#9ca3af', fontWeight: 600 }}>
+                      <span style={{ color: '#34d399' }}>Timeline Scrubber</span>
+                      <span>Cumulative Duration: {cumulativeDuration}s / 40s</span>
+                    </div>
+
+                    <div style={{ width: '100%', background: '#1e293b', height: '10px', borderRadius: '5px', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${progressPct}%`,
+                          background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                          height: '100%',
+                          transition: 'width 0.3s ease',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '4px' }}>
+                      {turnBadges.map((slot) => {
+                        const turnObj = screeningHistory[screeningHistory.length - 1 - slot.turnIndex]; // chronological
+                        const isActive = !!turnObj;
+                        return (
+                          <div
+                            key={slot.label}
+                            style={{
+                              padding: '8px 4px',
+                              borderRadius: '6px',
+                              textAlign: 'center',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              background: isActive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                              border: `1px solid ${isActive ? 'rgba(16, 185, 129, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                              color: isActive ? '#34d399' : '#6b7280',
+                            }}
+                          >
+                            <div>{slot.label}</div>
+                            <div style={{ fontSize: '9px', marginTop: '2px', opacity: 0.8 }}>
+                              {isActive ? `Turn #${slot.turnIndex + 1}` : 'Empty'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {screeningHistory.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '14px' }}>
                   No screening turns generated yet. Use Guided or Free-form Directing to generate your first video scene!
