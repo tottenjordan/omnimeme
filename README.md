@@ -1,5 +1,7 @@
 # OmniMeme - Gemini Omni Flash Video Directing Studio
 
+![CI Pipeline](https://github.com/tottenjordan/omnimeme/actions/workflows/ci.yml/badge.svg)
+![Automated CI/CD Pipeline](https://github.com/tottenjordan/omnimeme/actions/workflows/deploy.yml/badge.svg)
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 ![ADK Version](https://img.shields.io/badge/google--adk-2.7.1-violet)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.141.1-emerald)
