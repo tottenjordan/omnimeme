@@ -334,10 +334,30 @@ class OmniFlashExecutionEngine:
         yield f"data: {json.dumps({'status': 'completed', 'progress': 100, 'result': result.to_dict()})}\n\n"
 
 
+def _clean_ffmpeg_text(text: str, max_len: int = 40) -> str:
+    if not text:
+        return ""
+    cleaned = (
+        text.replace("\\", "")
+        .replace("'", "")
+        .replace(":", "")
+        .replace("%", "%%")
+        .replace("\n", " ")
+        .replace("\r", "")
+    )
+    return cleaned[:max_len].strip()
+
+
 def concatenate_storyboard_videos(
-    video_urls: list[str], output_filename: str | None = None
+    video_urls: list[str],
+    output_filename: str | None = None,
+    lower_third_titles: list[dict[str, str]] | None = None,
+    product_sponsor_callout: str | None = None,
 ) -> str:
-    """Concatenates multiple scene video clips into a single master MP4 film using FFmpeg."""
+    """Concatenates multiple scene video clips into a single master MP4 film using FFmpeg.
+
+    Optionally burns in lower-third character titles and product sponsorship banners.
+    """
     if not video_urls:
         raise ValueError("video_urls list cannot be empty")
 
@@ -370,10 +390,84 @@ def concatenate_storyboard_videos(
     if not valid_paths:
         raise RuntimeError("No valid video files available for concatenation")
 
+    temp_files_to_clean = []
+    processed_paths = []
+
+    for idx, src_path in enumerate(valid_paths):
+        lt = lower_third_titles[idx] if lower_third_titles and idx < len(lower_third_titles) else None
+
+        filters = []
+        if product_sponsor_callout:
+            clean_callout = _clean_ffmpeg_text(product_sponsor_callout, 60)
+            if clean_callout:
+                filters.append(
+                    "drawbox=x=0:y=0:w=iw:h=40:color=black@0.85:t=fill,"
+                    "drawbox=x=0:y=38:w=iw:h=2:color=0xFACC15:t=fill,"
+                    f"drawtext=text='SPONSORED BY\\: {clean_callout}':fontcolor=0xFACC15:fontsize=16:x=20:y=10"
+                )
+
+        if lt:
+            if isinstance(lt, str):
+                name = lt
+                role = ""
+            elif isinstance(lt, dict):
+                name = lt.get("name") or lt.get("title") or lt.get("character") or ""
+                role = lt.get("role") or lt.get("subtitle") or ""
+            else:
+                name = ""
+                role = ""
+
+            if name:
+                clean_name = _clean_ffmpeg_text(name, 40)
+                clean_role = _clean_ffmpeg_text(role, 40)
+                if clean_name:
+                    lt_filter = (
+                        "drawbox=x=40:y=ih-90:w=380:h=60:color=black@0.8:t=fill,"
+                        "drawbox=x=40:y=ih-90:w=380:h=60:color=0x38BDF8:t=2,"
+                        f"drawtext=text='{clean_name}':fontcolor=0xFACC15:fontsize=18:x=55:y=h-82"
+                    )
+                    if clean_role:
+                        lt_filter += f",drawtext=text='{clean_role}':fontcolor=0xFFFFFF:fontsize=13:x=55:y=h-58"
+                    filters.append(lt_filter)
+
+        if filters:
+            filter_complex_str = ",".join(filters)
+            overlay_path = f"static/rendered/overlay_{uuid.uuid4().hex[:8]}_{idx}.mp4"
+            cmd_overlay = [
+                "ffmpeg",
+                "-y",
+                "-i",
+                src_path,
+                "-vf",
+                filter_complex_str,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "fast",
+                "-crf",
+                "18",
+                "-pix_fmt",
+                "yuv420p",
+                "-c:a",
+                "copy",
+                overlay_path,
+            ]
+            try:
+                res_ov = subprocess.run(cmd_overlay, capture_output=True, check=False)
+                if res_ov.returncode == 0 and os.path.exists(overlay_path) and os.path.getsize(overlay_path) > 0:
+                    processed_paths.append(os.path.abspath(overlay_path))
+                    temp_files_to_clean.append(overlay_path)
+                else:
+                    processed_paths.append(src_path)
+            except FileNotFoundError:
+                processed_paths.append(src_path)
+        else:
+            processed_paths.append(src_path)
+
     concat_list_path = f"static/rendered/concat_{uuid.uuid4().hex[:8]}.txt"
     try:
         with open(concat_list_path, "w", encoding="utf-8") as f:
-            for path in valid_paths:
+            for path in processed_paths:
                 escaped_path = path.replace("'", "'\\''")
                 f.write(f"file '{escaped_path}'\n")
 
@@ -395,7 +489,7 @@ def concatenate_storyboard_videos(
         except FileNotFoundError:
             logger.warning("FFmpeg executable not found. Copying single video file fallback.")
             import shutil
-            shutil.copyfile(valid_paths[0], out_rel_path)
+            shutil.copyfile(processed_paths[0], out_rel_path)
             return out_url
         if res.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
             cmd_reencode = [
@@ -423,11 +517,12 @@ def concatenate_storyboard_videos(
             if res_re.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
                 raise RuntimeError("FFmpeg video concatenation failed")
     finally:
-        if os.path.exists(concat_list_path):
-            try:
-                os.remove(concat_list_path)
-            except Exception:
-                pass
+        for tmp_file in [concat_list_path] + temp_files_to_clean:
+            if os.path.exists(tmp_file):
+                try:
+                    os.remove(tmp_file)
+                except Exception:
+                    pass
 
     return out_url
 

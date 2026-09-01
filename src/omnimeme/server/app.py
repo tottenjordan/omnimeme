@@ -93,6 +93,13 @@ class TurnaroundApiRequest(BaseModel):
     last_frame_uri: str | None = None
 
 
+class ProductInfoModel(BaseModel):
+    name: str
+    description: str = ""
+    image_url: str | None = None
+    tagline: str = ""
+
+
 class GuidedApiRequest(BaseModel):
     subject: str
     action: str = ""
@@ -108,6 +115,8 @@ class GuidedApiRequest(BaseModel):
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
     character_role_id: str | None = None
+    character_b_role_id: str | None = None
+    product: ProductInfoModel | None = None
     motion_preset: str | None = None
 
 
@@ -120,6 +129,8 @@ class FreeformApiRequest(BaseModel):
     reference_images: list[MediaAttachmentModel] = []
     reference_videos: list[MediaAttachmentModel] = []
     character_role_id: str | None = None
+    character_b_role_id: str | None = None
+    product: ProductInfoModel | None = None
     motion_preset: str | None = None
 
 
@@ -130,9 +141,21 @@ class ScriptwritingRequest(BaseModel):
     character_role_id: str | None = None
 
 
+class MashupRequest(BaseModel):
+    character_a_id: str
+    character_b_id: str
+    mashup_genre: str = "Parody Crossover"
+    parody_tone: str = "Absurdist Satire"
+    product: ProductInfoModel | None = None
+    scene_count: int = 4
+
+
 class ConcatenateRequest(BaseModel):
     video_urls: list[str]
     output_filename: str | None = None
+    lower_third_titles: list[dict[str, str]] | None = None
+    product_sponsor_callout: str | None = None
+
 
 
 def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAttachment]:
@@ -232,6 +255,14 @@ def generate_character_turnaround(role_id: str, req: TurnaroundApiRequest | None
 @app.post("/api/guided/enhance")
 def enhance_guided(req: GuidedApiRequest):
     agent = create_omni_director_agent()
+    ref_images = _parse_media_attachments(req.reference_images)
+    if req.character_b_role_id:
+        char_b = global_vault.get_character(req.character_b_role_id)
+        if char_b and char_b.turnaround_sheet_url:
+            ref_images.append(MediaAttachment(uri=char_b.turnaround_sheet_url, mime_type="image/png", description=f"{char_b.name} Turnaround Sheet (@Image2)"))
+    if req.product and req.product.image_url:
+        ref_images.append(MediaAttachment(uri=req.product.image_url, mime_type="image/png", description=f"Product Reference: {req.product.name}"))
+
     inp = GuidedPromptInput(
         subject=req.subject,
         action=req.action,
@@ -244,7 +275,7 @@ def enhance_guided(req: GuidedApiRequest):
         resolution=req.resolution,
         first_frame_uri=req.first_frame_uri,
         last_frame_uri=req.last_frame_uri,
-        reference_images=_parse_media_attachments(req.reference_images),
+        reference_images=ref_images,
         reference_videos=_parse_media_attachments(req.reference_videos),
         motion_preset=req.motion_preset,
     )
@@ -258,13 +289,21 @@ def enhance_guided(req: GuidedApiRequest):
 @app.post("/api/freeform/enhance")
 def enhance_freeform(req: FreeformApiRequest):
     agent = create_omni_director_agent()
+    ref_images = _parse_media_attachments(req.reference_images)
+    if req.character_b_role_id:
+        char_b = global_vault.get_character(req.character_b_role_id)
+        if char_b and char_b.turnaround_sheet_url:
+            ref_images.append(MediaAttachment(uri=char_b.turnaround_sheet_url, mime_type="image/png", description=f"{char_b.name} Turnaround Sheet (@Image2)"))
+    if req.product and req.product.image_url:
+        ref_images.append(MediaAttachment(uri=req.product.image_url, mime_type="image/png", description=f"Product Reference: {req.product.name}"))
+
     inp = FreeformInput(
         raw_prompt=req.raw_prompt,
         director_style_preference=req.director_style_preference,
         resolution=req.resolution,
         first_frame_uri=req.first_frame_uri,
         last_frame_uri=req.last_frame_uri,
-        reference_images=_parse_media_attachments(req.reference_images),
+        reference_images=ref_images,
         reference_videos=_parse_media_attachments(req.reference_videos),
         motion_preset=req.motion_preset,
     )
@@ -273,6 +312,12 @@ def enhance_freeform(req: FreeformApiRequest):
     if res["status"] == "error":
         raise HTTPException(status_code=400, detail=res["error_message"])
     return res
+
+
+@app.get("/api/vault/mashup-bundles")
+def get_vault_mashup_bundles():
+    from omnimeme.vault import MASHUP_PRESET_BUNDLES
+    return MASHUP_PRESET_BUNDLES
 
 
 @app.post("/api/scriptwriting/generate")
@@ -291,17 +336,49 @@ def generate_scriptwriting(req: ScriptwritingRequest):
     return {"status": "success", "storyboard": result}
 
 
+@app.post("/api/scriptwriting/mashup")
+def generate_mashup_scriptwriting(req: MashupRequest):
+    if not req.character_a_id or not req.character_b_id or not req.character_a_id.strip() or not req.character_b_id.strip():
+        raise HTTPException(status_code=400, detail="character_a_id and character_b_id are required.")
+
+    scriptwriter = create_scriptwriter_agent()
+    p_name = req.product.name if req.product else None
+    p_desc = req.product.description if req.product else None
+    p_img = req.product.image_url if req.product else None
+    p_tag = req.product.tagline if req.product else None
+
+    result = scriptwriter.generate_mashup_storyboard(
+        character_a_id=req.character_a_id,
+        character_b_id=req.character_b_id,
+        mashup_genre=req.mashup_genre,
+        parody_tone=req.parody_tone,
+        product_name=p_name,
+        product_description=p_desc,
+        product_image_url=p_img,
+        product_tagline=p_tag,
+        scene_count=req.scene_count,
+        character_vault=global_vault,
+    )
+    return {"status": "success", "storyboard": result}
+
+
 @app.post("/api/scriptwriting/concatenate")
 def concatenate_scriptwriting(req: ConcatenateRequest):
     if not req.video_urls:
         raise HTTPException(status_code=400, detail="video_urls list cannot be empty.")
     try:
-        master_url = concatenate_storyboard_videos(req.video_urls, output_filename=req.output_filename)
+        master_url = concatenate_storyboard_videos(
+            req.video_urls,
+            output_filename=req.output_filename,
+            lower_third_titles=req.lower_third_titles,
+            product_sponsor_callout=req.product_sponsor_callout,
+        )
         return {"status": "success", "master_video_url": master_url}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 

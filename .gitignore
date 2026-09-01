@@ -32,3 +32,11 @@ artifacts/
 # OS Metadata
 .DS_Store
 Thumbs.db
+
+# Rendered Video & Media Artifacts
+static/rendered/*.mp4
+static/rendered/*.wav
+static/rendered/*.png
+static/rendered/*.jpg
+static/rendered/*.txt
+!static/rendered/.gitkeep

@@ -88,6 +88,33 @@ export interface GenerationResult {
   generation_mode: string;
 }
 
+export interface ProductInfo {
+  name: string;
+  description?: string;
+  image_url?: string;
+  tagline?: string;
+}
+
+export interface MashupRequest {
+  character_a_id: string;
+  character_b_id: string;
+  mashup_genre?: string;
+  parody_tone?: string;
+  product?: ProductInfo;
+  scene_count?: number;
+}
+
+export interface MashupBundle {
+  id: string;
+  title: string;
+  description: string;
+  character_a: CharacterRole;
+  character_b: CharacterRole;
+  mashup_genre: string;
+  parody_tone: string;
+  product?: ProductInfo;
+}
+
 export interface StoryboardScene {
   scene_number: number;
   title: string;
@@ -95,6 +122,7 @@ export interface StoryboardScene {
   camera_instruction: string;
   audio_cue: string;
   character_role_id?: string;
+  lower_third_title?: { name: string; role?: string };
   video_config: VideoConfig;
 }
 
@@ -105,6 +133,11 @@ export interface StoryboardResponse {
     scene_count: number;
     style_preference: string;
     character_role_id?: string;
+    character_a_id?: string;
+    character_b_id?: string;
+    mashup_genre?: string;
+    parody_tone?: string;
+    product?: ProductInfo;
     scenes: StoryboardScene[];
   };
   error_message?: string;
@@ -112,6 +145,7 @@ export interface StoryboardResponse {
 
 
 const API_BASE = '/api';
+
 
 export async function checkHealth(): Promise<{ status: string; service: string }> {
   const res = await fetch(`${API_BASE}/health`);
@@ -324,6 +358,25 @@ export async function generateStoryboard(data: {
   return res.json();
 }
 
+export async function generateMashupStoryboard(data: MashupRequest): Promise<StoryboardResponse> {
+  const res = await fetch(`${API_BASE}/scriptwriting/mashup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: 'Failed to generate mashup storyboard' }));
+    throw new Error(errorData.detail || 'Failed to generate mashup storyboard');
+  }
+  return res.json();
+}
+
+export async function fetchMashupBundles(): Promise<MashupBundle[]> {
+  const res = await fetch(`${API_BASE}/vault/mashup-bundles`);
+  if (!res.ok) throw new Error('Failed to fetch mashup bundles');
+  return res.json();
+}
+
 export async function fetchArchetypePresets(): Promise<CharacterArchetypePreset[]> {
   const res = await fetch(`${API_BASE}/vault/archetypes`);
   if (!res.ok) throw new Error('Failed to fetch character archetype presets');
@@ -332,12 +385,19 @@ export async function fetchArchetypePresets(): Promise<CharacterArchetypePreset[
 
 export async function concatenateMasterFilm(
   videoUrls: string[],
-  outputFilename?: string
+  outputFilename?: string,
+  lowerThirdTitles?: Record<string, string>[],
+  productSponsorCallout?: string
 ): Promise<{ status: string; master_video_url: string }> {
   const res = await fetch(`${API_BASE}/scriptwriting/concatenate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ video_urls: videoUrls, output_filename: outputFilename }),
+    body: JSON.stringify({
+      video_urls: videoUrls,
+      output_filename: outputFilename,
+      lower_third_titles: lowerThirdTitles,
+      product_sponsor_callout: productSponsorCallout,
+    }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ detail: 'Failed to concatenate master film' }));
@@ -345,6 +405,7 @@ export async function concatenateMasterFilm(
   }
   return res.json();
 }
+
 
 
 
