@@ -23,4 +23,6 @@ It uses Gemini Enterprise Agent Platform to source the model API and deploy and 
 2. **Explicit PR Review**: NEVER merge a Pull Request into `main` until the user explicitly confirms GitHub review approval.
 3. **Deployment Verification**: Always verify deployment status dynamically using `gcloud run services describe omnimeme` or `agents-cli deploy --status` rather than relying on legacy metadata fields.
 4. **Media Teardown**: Temporary rendered test artifacts (`static/rendered/*.mp4`, `*.wav`) must never be committed to Git and must be cleaned up automatically.
+5. **Zero Hardcoded Environment Literals**: Never hardcode environment-specific GCP project IDs, bucket names, or live URLs in tracked code, tests, or `.env.example` templates. Always use generic placeholders like `your-gcp-project-id`.
+
 

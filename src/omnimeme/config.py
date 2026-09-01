@@ -20,11 +20,12 @@ def get_gcp_project() -> str:
             text=True,
             check=True,
         )
-        if res.stdout.strip():
-            return res.stdout.strip()
+        out = res.stdout.strip()
+        if out and not out.startswith("("):
+            return out
     except Exception:
         pass
-    return "hybrid-vertex"
+    return ""
 
 
 def get_gcp_region() -> str:
