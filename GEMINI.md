@@ -17,3 +17,10 @@ It uses Gemini Enterprise Agent Platform to source the model API and deploy and 
 - **Unit/Contract Testing**: `pytest`
 - **Agent Development, Smoke Testing & Eval**: `agents-cli` (`agents-cli run`, `agents-cli eval run`)
 - **Documentation & Notes**: Saved in [`docs/notes/`](file:///usr/local/google/home/jordantotten/omnimeme/docs/notes/README.md)
+
+## 🛡️ Mandatory Workflow Rules & Deployment Conventions
+1. **Pull Request Isolation**: ALL code changes must strictly be committed to a feature branch, pushed to GitHub, and submitted as a Pull Request (`gh pr create`).
+2. **Explicit PR Review**: NEVER merge a Pull Request into `main` until the user explicitly confirms GitHub review approval.
+3. **Deployment Verification**: Always verify deployment status dynamically using `gcloud run services describe omnimeme` or `agents-cli deploy --status` rather than relying on legacy metadata fields.
+4. **Media Teardown**: Temporary rendered test artifacts (`static/rendered/*.mp4`, `*.wav`) must never be committed to Git and must be cleaned up automatically.
+
