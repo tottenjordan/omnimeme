@@ -1,7 +1,7 @@
 {
   "deployment_target": "cloud_run",
   "cloud_run_service_url": "https://omnimeme-934903580331.us-central1.run.app",
-  "gcp_project": "hybrid-vertex",
+  "gcp_project_env": "GCP_PROJECT",
   "gcp_region": "us-central1",
   "last_deployed_at": "2026-09-01T00:46:00Z"
 }
