@@ -1,10 +1,11 @@
 name: omni_director_eval
 description: Evaluation suite for Gemini Omni Flash Video Directing Prompt Enhancements
+model: gemini-omni-1.1-flash
 dataset: evals/dataset.jsonl
 metrics:
   - name: taxonomy_compliance
     type: llm_judge
-    criteria: "Check whether the output prompt includes Subject, Action & Motion, Camera Angle & Movement, and Lighting."
+    criteria: "Check whether the output prompt includes Subject, Action & Motion, Camera Angle & Movement, Lighting, Dialogue, Sound Design, and Music Score."
   - name: resolution_draft_validation
     type: rule_check
     criteria: "Validate 360p fast draft resolution setting in generated video config."
@@ -14,6 +15,9 @@ metrics:
   - name: theme_sanitization_check
     type: rule_check
     criteria: "Verify real names and trademarked entities are sanitized to visual descriptors."
+  - name: audio_directing_compliance
+    type: rule_check
+    criteria: "Verify presence of structured native audio directives [Dialogue], [Sound Design], and [Music Score]."
 
 test_cases:
   - id: draft_resolution_360p
@@ -32,3 +36,12 @@ test_cases:
     input: "Tom Cruise riding a motorcycle in cyberpunk city"
     theme: "cyberpunk"
     expected_sanitized_subject: "an intense action hero with a confident grin"
+  - id: audio_directing_dialogue_and_score
+    input: "Cyberpunk scene with speech"
+    dialogue_text: "Welcome to Night City"
+    sound_effects: "Rain on asphalt"
+    music_score: "Dark synthwave"
+    expected_audio_directives:
+      - "[Dialogue]: Welcome to Night City"
+      - "[Sound Design]: Rain on asphalt"
+      - "[Music Score]: Dark synthwave"

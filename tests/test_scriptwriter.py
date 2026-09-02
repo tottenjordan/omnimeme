@@ -43,7 +43,7 @@ def test_generate_storyboard_success():
         assert "camera_instruction" in scene
         assert "audio_cue" in scene
         assert "video_config" in scene
-        assert scene["video_config"]["model"] == "gemini-omni-1.1-flash-preview"
+        assert scene["video_config"]["model"] == "gemini-omni-1.1-flash"
         assert scene["video_config"]["parameters"]["duration_seconds"] == 5
 
 
@@ -121,7 +121,7 @@ def test_scriptwriter_agent_remote_a2a_delegation():
     mock_director = MagicMock()
     mock_director.run.return_value = {
         "video_config": {
-            "model": "gemini-omni-1.1-flash-preview",
+            "model": "gemini-omni-1.1-flash",
             "prompt": "Federated A2A Director Prompt",
             "parameters": {"duration_seconds": 5},
         }
@@ -168,4 +168,3 @@ def test_a2a_agent_card_endpoint_mounted():
         assert resp.status_code == 200
         card = resp.json()
         assert card["name"] == "omni_director"
-

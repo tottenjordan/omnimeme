@@ -27,7 +27,7 @@ logger = logging.getLogger("omnimeme.server")
 
 omni_director_adk_agent = Agent(
     name="omni_director",
-    model="gemini-omni-1.1-flash-preview",
+    model="gemini-omni-1.1-flash",
     instruction=OMNI_FLASH_DIRECTING_INSTR,
     tools=[enhance_video_prompt, generate_video_config],
 )
@@ -107,6 +107,11 @@ class GuidedApiRequest(BaseModel):
     lighting: str = ""
     style: str = ""
     audio: str = ""
+    dialogue_text: str = ""
+    sound_effects: str = ""
+    music_score: str = ""
+    mute_dialogue: bool = False
+    no_music: bool = False
     duration_sec: int = 5
     aspect_ratio: str = "16:9"
     resolution: str = "720p"
@@ -270,6 +275,11 @@ def enhance_guided(req: GuidedApiRequest):
         lighting=req.lighting,
         style=req.style,
         audio=req.audio,
+        dialogue_text=req.dialogue_text,
+        sound_effects=req.sound_effects,
+        music_score=req.music_score,
+        mute_dialogue=req.mute_dialogue,
+        no_music=req.no_music,
         duration_sec=req.duration_sec,
         aspect_ratio=req.aspect_ratio,
         resolution=req.resolution,
@@ -380,10 +390,6 @@ def concatenate_scriptwriting(req: ConcatenateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
-
-
 @app.post("/api/guided/stream")
 def stream_guided(req: GuidedApiRequest):
     if not req.subject or not req.subject.strip():
@@ -397,6 +403,11 @@ def stream_guided(req: GuidedApiRequest):
         lighting=req.lighting,
         style=req.style,
         audio=req.audio,
+        dialogue_text=req.dialogue_text,
+        sound_effects=req.sound_effects,
+        music_score=req.music_score,
+        mute_dialogue=req.mute_dialogue,
+        no_music=req.no_music,
         duration_sec=req.duration_sec,
         aspect_ratio=req.aspect_ratio,
         resolution=req.resolution,
@@ -421,6 +432,11 @@ def stream_guided(req: GuidedApiRequest):
         reference_assets=reference_assets,
         character_role=char_role,
         motion_preset=req.motion_preset,
+        dialogue_text=req.dialogue_text,
+        sound_effects=req.sound_effects,
+        music_score=req.music_score,
+        mute_dialogue=req.mute_dialogue,
+        no_music=req.no_music,
     )
     return StreamingResponse(generator, media_type="text/event-stream", headers=SSE_HEADERS)
 
@@ -513,6 +529,3 @@ def submit_feedback(req: UserFeedbackRequest):
         f"type={req.feedback_type} comment={json.dumps(req.comment or '')} prompt={json.dumps(req.prompt or '')}"
     )
     return {"status": "success", "message": "Feedback recorded successfully."}
-
-
-

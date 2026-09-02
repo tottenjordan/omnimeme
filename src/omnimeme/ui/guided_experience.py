@@ -30,6 +30,11 @@ class GuidedPromptInput:
     lighting: str = ""
     style: str = ""
     audio: str = ""
+    dialogue_text: str = ""
+    sound_effects: str = ""
+    music_score: str = ""
+    mute_dialogue: bool = False
+    no_music: bool = False
     duration_sec: int = 5
     aspect_ratio: str = "16:9"
     resolution: str = "720p"
@@ -62,6 +67,16 @@ class GuidedPromptInput:
             parts.append(f"Style: {self.style}")
         if self.audio:
             parts.append(f"Audio: {self.audio}")
+        if self.dialogue_text:
+            parts.append(f"Dialogue: {self.dialogue_text}")
+        if self.sound_effects:
+            parts.append(f"Sound Effects: {self.sound_effects}")
+        if self.music_score:
+            parts.append(f"Music Score: {self.music_score}")
+        if self.mute_dialogue:
+            parts.append("Mute Dialogue")
+        if self.no_music:
+            parts.append("No Music")
 
         ref_parts = []
         for img in self.reference_images:
@@ -101,6 +116,11 @@ def process_guided_request(
         reference_assets=reference_assets,
         character_role=character_role,
         motion_preset=input_data.motion_preset,
+        dialogue_text=input_data.dialogue_text,
+        sound_effects=input_data.sound_effects,
+        music_score=input_data.music_score,
+        mute_dialogue=input_data.mute_dialogue,
+        no_music=input_data.no_music,
     )
     return {
         "interface": "guided_experience",
