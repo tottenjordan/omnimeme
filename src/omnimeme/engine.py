@@ -219,7 +219,7 @@ def parse_guardrail_error_guidance(
 class OmniFlashExecutionEngine:
     """Execution Engine for Gemini Omni Flash Video Generation & Interactions API."""
 
-    def __init__(self, api_key: str | None = None, mock_mode: bool = False, model: str = "gemini-omni-1.1-flash-preview"):
+    def __init__(self, api_key: str | None = None, mock_mode: bool = False, model: str = "gemini-omni-1.1-flash"):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.mock_mode = mock_mode
         self.model = model
@@ -249,19 +249,26 @@ class OmniFlashExecutionEngine:
         if not self.mock_mode and genai is not None:
             try:
                 client = genai.Client(api_key=self.api_key) if self.api_key else genai.Client()
-                model_name = config.get("model", "gemini-omni-1.1-flash-preview")
+                model_name = config.get("model", "gemini-omni-1.1-flash")
+
+                inputs: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+                if ff_uri:
+                    inputs.append({"type": "image", "gcs_uri": ff_uri, "role": "first_frame"})
+                if lf_uri:
+                    inputs.append({"type": "image", "gcs_uri": lf_uri, "role": "last_frame"})
+
+                video_config: dict[str, Any] = {}
+                if res:
+                    video_config["resolution"] = res
+
                 kwargs: dict[str, Any] = {
                     "model": model_name,
-                    "input": prompt,
+                    "input": inputs,
                 }
+                if video_config:
+                    kwargs["video_config"] = video_config
                 if previous_interaction_id:
                     kwargs["previous_interaction_id"] = previous_interaction_id
-                if res:
-                    kwargs["resolution"] = res
-                if ff_uri:
-                    kwargs["first_frame_uri"] = ff_uri
-                if lf_uri:
-                    kwargs["last_frame_uri"] = lf_uri
 
                 logger.info(f"Invoking Gemini Omni Flash Interactions API ({model_name}): {prompt[:60]}...")
                 interaction = client.interactions.create(**kwargs)
@@ -525,6 +532,3 @@ def concatenate_storyboard_videos(
                     pass
 
     return out_url
-
-
-

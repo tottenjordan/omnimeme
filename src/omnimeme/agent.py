@@ -13,7 +13,7 @@ class OmniDirectorAgent:
     def __init__(
         self,
         name: str = "omni_director",
-        model: str = "gemini-omni-1.1-flash-preview",
+        model: str = "gemini-omni-1.1-flash",
         project_id: str | None = None,
         location: str | None = "us-central1",
     ):
@@ -36,6 +36,11 @@ class OmniDirectorAgent:
         character_role: Any | None = None,
         motion_preset: str | None = None,
         theme: str = "cinematic",
+        dialogue_text: str = "",
+        sound_effects: str = "",
+        music_score: str = "",
+        mute_dialogue: bool = False,
+        no_music: bool = False,
     ) -> dict[str, Any]:
         if character_role and getattr(character_role, "turnaround_sheet_url", None):
             ref_asset = {
@@ -55,6 +60,11 @@ class OmniDirectorAgent:
             character_role=character_role,
             motion_preset=motion_preset,
             theme=theme,
+            dialogue_text=dialogue_text,
+            sound_effects=sound_effects,
+            music_score=music_score,
+            mute_dialogue=mute_dialogue,
+            no_music=no_music,
         )
         config = generate_video_config(
             enhanced["enhanced_prompt"],
@@ -86,6 +96,11 @@ class OmniDirectorAgent:
         character_role: Any | None = None,
         motion_preset: str | None = None,
         theme: str = "cinematic",
+        dialogue_text: str = "",
+        sound_effects: str = "",
+        music_score: str = "",
+        mute_dialogue: bool = False,
+        no_music: bool = False,
     ):
         """Yields SSE events for token streaming and final result payload."""
         import json
@@ -111,6 +126,11 @@ class OmniDirectorAgent:
             character_role=character_role,
             motion_preset=motion_preset,
             theme=theme,
+            dialogue_text=dialogue_text,
+            sound_effects=sound_effects,
+            music_score=music_score,
+            mute_dialogue=mute_dialogue,
+            no_music=no_music,
         ):
             accumulated.append(chunk)
             token_event = {"type": "token", "chunk": chunk}

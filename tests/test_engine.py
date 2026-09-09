@@ -27,7 +27,7 @@ def test_guardrail_error_guidance():
 def test_execution_engine_generate_video(tmp_path):
     engine = OmniFlashExecutionEngine(mock_mode=True)
     config = {
-        "model": "gemini-omni-1.1-flash-preview",
+        "model": "gemini-omni-1.1-flash",
         "prompt": "A futuristic motorcycle racing down a neon highway",
         "parameters": {"duration_seconds": 3, "aspect_ratio": "16:9", "resolution": "1080p"},
     }
@@ -46,6 +46,7 @@ def test_execution_engine_generate_video(tmp_path):
 def test_engine_default_mock_mode():
     engine = OmniFlashExecutionEngine()
     assert engine.mock_mode is False
+    assert engine.model == "gemini-omni-1.1-flash"
 
 
 def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
@@ -63,9 +64,12 @@ def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
 
     class FakeInteractionsClient:
         def create(self, **kwargs):
-            assert kwargs["model"] == "gemini-omni-1.1-flash-preview"
-            assert kwargs["input"] == "Test prompt"
+            assert kwargs["model"] == "gemini-omni-1.1-flash"
+            assert kwargs["input"] == [{"type": "text", "text": "Test prompt"}]
             assert kwargs.get("previous_interaction_id") == "prev_turn_1"
+            assert "first_frame_uri" not in kwargs
+            assert "last_frame_uri" not in kwargs
+            assert "resolution" not in kwargs
             return FakeInteraction()
 
     class FakeGenAIClient:
@@ -136,6 +140,3 @@ def test_concatenate_storyboard_videos_enforce_master_prefix():
 
     master_url = concatenate_storyboard_videos([url], output_filename="custom_feature.mp4")
     assert master_url == "/static/rendered/master_custom_feature.mp4"
-
-
-

@@ -47,13 +47,17 @@ def sanitize_character_concept(raw_subject: str, theme: str = "cinematic") -> st
     return sanitized
 
 
-
 def enhance_video_prompt(
     raw_prompt: str,
     director_notes: str = "",
     character_role: Any | None = None,
     motion_preset: str | None = None,
     theme: str = "cinematic",
+    dialogue_text: str = "",
+    sound_effects: str = "",
+    music_score: str = "",
+    mute_dialogue: bool = False,
+    no_music: bool = False,
 ) -> dict[str, str]:
     """Enhances a raw user prompt with Omni Flash video directing best practices.
 
@@ -63,6 +67,11 @@ def enhance_video_prompt(
         character_role: Optional character role configuration or reference.
         motion_preset: Optional camera motion preset key or string directive.
         theme: Optional stylistic theme context for character concept sanitization.
+        dialogue_text: Optional dialogue line text for native speech generation.
+        sound_effects: Optional sound effects / foley directives.
+        music_score: Optional background music score directives.
+        mute_dialogue: Flag to suppress speech generation ("No dialogue").
+        no_music: Flag to suppress background music ("No background music").
     """
     sanitized_prompt = sanitize_character_concept(raw_prompt.strip(), theme=theme)
     subject = sanitized_prompt
@@ -81,6 +90,10 @@ def enhance_video_prompt(
         preset_text = KEYFRAME_MOTION_PRESETS.get(motion_preset, motion_preset)
         camera_motion = f"35mm lens, {preset_text}"
 
+    dialogue_directive = "No dialogue" if (mute_dialogue or not dialogue_text.strip()) else dialogue_text.strip()
+    sound_directive = sound_effects.strip() if sound_effects.strip() else "Subtle ambient sound"
+    music_directive = "No background music" if (no_music or not music_score.strip()) else music_score.strip()
+
     enhanced = (
         f"{role_header}"
         f"[Subject]: {subject}{notes}\n"
@@ -88,7 +101,9 @@ def enhance_video_prompt(
         f"[Camera Angle & Movement]: {camera_motion}\n"
         f"[Lighting & Atmosphere]: Natural volumetric lighting with cinematic color grade.\n"
         f"[Style & Aesthetics]: Photorealistic, 4K film crispness.\n"
-        f"[Audio Cues]: Immersive ambient atmospheric sound matching visual action."
+        f"[Dialogue]: {dialogue_directive}\n"
+        f"[Sound Design]: {sound_directive}\n"
+        f"[Music Score]: {music_directive}"
     )
     return {
         "raw_prompt": raw_prompt,
@@ -102,6 +117,11 @@ def stream_enhance_video_prompt(
     character_role: Any | None = None,
     motion_preset: str | None = None,
     theme: str = "cinematic",
+    dialogue_text: str = "",
+    sound_effects: str = "",
+    music_score: str = "",
+    mute_dialogue: bool = False,
+    no_music: bool = False,
 ):
     """Yields streaming chunks for enhanced prompt taxonomy."""
     res = enhance_video_prompt(
@@ -110,9 +130,13 @@ def stream_enhance_video_prompt(
         character_role=character_role,
         motion_preset=motion_preset,
         theme=theme,
+        dialogue_text=dialogue_text,
+        sound_effects=sound_effects,
+        music_score=music_score,
+        mute_dialogue=mute_dialogue,
+        no_music=no_music,
     )
     text = res["enhanced_prompt"]
-    # Chunk by lines to provide natural streaming animation
     lines = text.split("\n")
     for i, line in enumerate(lines):
         chunk = line + ("\n" if i < len(lines) - 1 else "")
@@ -129,20 +153,9 @@ def generate_video_config(
     last_frame_uri: str | None = None,
     motion_preset: str | None = None,
 ) -> dict[str, Any]:
-    """Generates the API configuration payload for Gemini Omni Flash video generation.
-
-    Args:
-        enhanced_prompt: The fully direct-engineered prompt string.
-        duration_sec: Duration in seconds (1-10).
-        aspect_ratio: Video aspect ratio ('16:9', '9:16', '1:1').
-        reference_assets: Optional list of reference images/videos.
-        resolution: Video resolution ('360p', '720p', '1080p', '4k').
-        first_frame_uri: Optional first frame keyframe GCS URI.
-        last_frame_uri: Optional last frame keyframe GCS URI.
-        motion_preset: Optional keyframe motion preset name.
-    """
+    """Generates the API configuration payload for Gemini Omni Flash video generation."""
     payload: dict[str, Any] = {
-        "model": "gemini-omni-1.1-flash-preview",
+        "model": "gemini-omni-1.1-flash",
         "prompt": enhanced_prompt,
         "resolution": resolution,
         "parameters": {
@@ -164,4 +177,3 @@ def generate_video_config(
     if reference_assets:
         payload["reference_assets"] = reference_assets
     return payload
-

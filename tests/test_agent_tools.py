@@ -21,7 +21,7 @@ def test_generate_video_config_tool():
         first_frame_uri="gs://bucket/start.png",
         last_frame_uri="gs://bucket/end.png",
     )
-    assert cfg["model"] == "gemini-omni-1.1-flash-preview"
+    assert cfg["model"] == "gemini-omni-1.1-flash"
     assert cfg["parameters"]["duration_seconds"] == 5
     assert cfg["parameters"]["aspect_ratio"] == "16:9"
     assert cfg["parameters"]["resolution"] == "1080p"
@@ -32,6 +32,7 @@ def test_generate_video_config_tool():
 def test_omni_director_agent_creation():
     agent = create_omni_director_agent()
     assert agent.name == "omni_director"
+    assert agent.model == "gemini-omni-1.1-flash"
 
 
 def test_generate_video_config_tool_with_reference_assets():
