@@ -124,6 +124,13 @@ export interface StoryboardScene {
   character_role_id?: string;
   lower_third_title?: { name: string; role?: string };
   video_config: VideoConfig;
+  is_chained?: boolean;
+  video_url?: string;
+  interaction_id?: string;
+  turn_number?: number;
+  duration_seconds?: number;
+  status?: string;
+  generation_mode?: string;
 }
 
 export interface StoryboardResponse {
@@ -402,6 +409,27 @@ export async function concatenateMasterFilm(
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ detail: 'Failed to concatenate master film' }));
     throw new Error(errorData.detail || 'Failed to concatenate master film');
+  }
+  return res.json();
+}
+
+export async function renderChainedStoryboard(
+  scenes: StoryboardScene[],
+  resolution?: string,
+  mockMode?: boolean
+): Promise<{ status: string; scenes: StoryboardScene[]; total_scenes: number; cumulative_duration_seconds: number }> {
+  const res = await fetch(`${API_BASE}/scriptwriting/render-chained`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      scenes,
+      resolution: resolution || '720p',
+      mock_mode: mockMode,
+    }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ detail: 'Failed to render chained storyboard' }));
+    throw new Error(errorData.detail || 'Failed to render chained storyboard');
   }
   return res.json();
 }

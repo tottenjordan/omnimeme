@@ -42,6 +42,31 @@ class ScriptwriterAgent:
         else:
             self.director_agent = create_omni_director_agent()
 
+    def format_chained_scene_prompt(
+        self,
+        scene_number: int,
+        visual_description: str,
+        camera_instruction: str = "",
+    ) -> str:
+        """Formats scene prompt with sequential chaining directives to prevent visual drift.
+
+        Scene 1 uses the standard visual prompt.
+        Scene N (N > 1) prepends continuous extension directives maintaining likeness, wardrobe,
+        lighting palette, environment continuity, visual style, and world physics.
+        """
+        if scene_number <= 1:
+            return visual_description
+
+        ext_prompt = (
+            f"Extend this video continuously: {visual_description}. "
+            f"Maintain exact character likeness, wardrobe details, lighting palette, "
+            f"and environment continuity from the previous scene. "
+            f"Keep the visual style and world physics identical."
+        )
+        if camera_instruction:
+            ext_prompt += f" Camera: {camera_instruction}."
+        return ext_prompt
+
     def generate_storyboard(
         self,
         concept: str,
@@ -76,9 +101,15 @@ class ScriptwriterAgent:
             title = scene_info.get("title", f"Scene {i}")
             audio = scene_info.get("audio_cue", "")
 
+            chained_prompt = self.format_chained_scene_prompt(
+                scene_number=i,
+                visual_description=visual_desc,
+                camera_instruction=camera_inst,
+            )
+
             # Generate video_config via director_agent (OmniDirectorAgent or RemoteA2aAgent)
             video_config = self._create_scene_video_config(
-                visual_description=visual_desc,
+                visual_description=chained_prompt,
                 camera_instruction=camera_inst,
                 style_preference=style_preference,
                 char_role=char_role,
@@ -93,6 +124,7 @@ class ScriptwriterAgent:
                     "audio_cue": audio,
                     "character_role_id": character_role_id,
                     "video_config": video_config,
+                    "is_chained": True,
                 }
             )
 
@@ -185,9 +217,15 @@ class ScriptwriterAgent:
             title = s_info.get("title", f"Scene {i}")
             audio = s_info.get("audio_cue", "")
 
+            chained_prompt = self.format_chained_scene_prompt(
+                scene_number=i,
+                visual_description=v_desc,
+                camera_instruction=c_inst,
+            )
+
             style_pref = f"{mashup_genre}, {parody_tone} parody style"
             video_config = self._create_scene_video_config(
-                visual_description=v_desc,
+                visual_description=chained_prompt,
                 camera_instruction=c_inst,
                 style_preference=style_pref,
                 char_role=scene_char,
@@ -221,6 +259,7 @@ class ScriptwriterAgent:
                     "character_role_id": char_id,
                     "lower_third_title": lower_third,
                     "video_config": video_config,
+                    "is_chained": True,
                 }
             )
 

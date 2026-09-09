@@ -340,6 +340,52 @@ class OmniFlashExecutionEngine:
         yield f"data: {json.dumps({'status': 'saving_video_output', 'progress': 80})}\n\n"
         yield f"data: {json.dumps({'status': 'completed', 'progress': 100, 'result': result.to_dict()})}\n\n"
 
+    def render_chained_storyboard(
+        self,
+        scenes: list[dict[str, Any]],
+        resolution: str = "720p",
+        mock_mode: bool | None = None,
+    ) -> list[dict[str, Any]]:
+        """Sequentially renders storyboard scenes chaining previous_interaction_id across turns.
+
+        Eliminates visual drift by maintaining conversational continuity memory in Gemini Omni Flash.
+        Turn 1 passes previous_interaction_id=None.
+        Turn N (N >= 2) passes previous_interaction_id=scenes[N-1]["interaction_id"].
+        """
+        rendered_scenes: list[dict[str, Any]] = []
+        prev_interaction_id: str | None = None
+
+        for i, scene in enumerate(scenes):
+            v_config = scene.get("video_config") or {}
+            target_mock = mock_mode if mock_mode is not None else self.mock_mode
+
+            result = self.generate_video(
+                config=v_config,
+                previous_interaction_id=prev_interaction_id,
+                resolution=resolution,
+            ) if target_mock == self.mock_mode else OmniFlashExecutionEngine(
+                api_key=self.api_key,
+                mock_mode=target_mock,
+                model=self.model,
+            ).generate_video(
+                config=v_config,
+                previous_interaction_id=prev_interaction_id,
+                resolution=resolution,
+            )
+
+            prev_interaction_id = result.interaction_thread_id
+            scene_copy = dict(scene)
+            scene_copy["video_url"] = result.video_url
+            scene_copy["interaction_id"] = result.interaction_thread_id
+            scene_copy["turn_number"] = i + 1
+            scene_copy["duration_seconds"] = result.duration_seconds
+            scene_copy["generation_mode"] = result.generation_mode
+            scene_copy["status"] = result.status
+            rendered_scenes.append(scene_copy)
+
+        return rendered_scenes
+
+
 
 def _clean_ffmpeg_text(text: str, max_len: int = 40) -> str:
     if not text:
