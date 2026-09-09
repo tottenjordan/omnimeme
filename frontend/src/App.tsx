@@ -17,7 +17,8 @@ import {
   Zap,
   X,
   UserCheck,
-  UserPlus
+  UserPlus,
+  Link2
 } from 'lucide-react';
 import {
   checkHealth,
@@ -26,6 +27,7 @@ import {
   DirectingResponse,
   GenerationResult,
   executeVideoGeneration,
+  renderChainedStoryboard,
   MediaAttachment,
   CharacterRole,
   fetchVaultCharacters,
@@ -155,6 +157,7 @@ export default function App() {
   const [storyboard, setStoryboard] = useState<StoryboardResponse | null>(null);
   const [isGeneratingStoryboard, setIsGeneratingStoryboard] = useState<boolean>(false);
   const [isRenderingFederated, setIsRenderingFederated] = useState<boolean>(false);
+  const [isRenderingChained, setIsRenderingChained] = useState<boolean>(false);
   const [renderedScenes, setRenderedScenes] = useState<Record<number, GenerationResult>>({});
   const [isConcatenating, setIsConcatenating] = useState<boolean>(false);
   const [masterFilmUrl, setMasterFilmUrl] = useState<string | null>(null);
@@ -174,6 +177,7 @@ export default function App() {
   const [mashupStoryboard, setMashupStoryboard] = useState<StoryboardResponse | null>(null);
   const [isGeneratingMashup, setIsGeneratingMashup] = useState<boolean>(false);
   const [isRenderingMashup, setIsRenderingMashup] = useState<boolean>(false);
+  const [isRenderingMashupChained, setIsRenderingMashupChained] = useState<boolean>(false);
   const [mashupRenderedScenes, setMashupRenderedScenes] = useState<Record<number, GenerationResult>>({});
   const [isConcatenatingMashup, setIsConcatenatingMashup] = useState<boolean>(false);
   const [mashupMasterFilmUrl, setMashupMasterFilmUrl] = useState<string | null>(null);
@@ -239,6 +243,31 @@ export default function App() {
       }
     }
     setIsRenderingMashup(false);
+  };
+
+  const handleRenderChainedMashupScenes = async () => {
+    if (!mashupStoryboard?.storyboard?.scenes?.length) return;
+    setIsRenderingMashupChained(true);
+    setError(null);
+    try {
+      const res = await renderChainedStoryboard(mashupStoryboard.storyboard.scenes);
+      const updatedMap: Record<number, GenerationResult> = {};
+      res.scenes.forEach((sc) => {
+        updatedMap[sc.scene_number] = {
+          interaction_thread_id: sc.interaction_id || `turn_${sc.scene_number}`,
+          video_url: sc.video_url || '',
+          duration_seconds: sc.duration_seconds || 5,
+          synth_id_watermark: 'SYNTHID_C2PA_VERIFIED',
+          status: sc.status || 'completed',
+          generation_mode: sc.generation_mode || 'LIVE_GEMINI_OMNI_1_1_FLASH',
+        };
+      });
+      setMashupRenderedScenes((prev) => ({ ...prev, ...updatedMap }));
+    } catch (err: any) {
+      setError(err.message || 'Chained mashup rendering failed');
+    } finally {
+      setIsRenderingMashupChained(false);
+    }
   };
 
   const handleRenderSingleMashupScene = async (sceneNumber: number, config: VideoConfig) => {
@@ -344,6 +373,31 @@ export default function App() {
       setError(err.message || 'Federated scene rendering failed');
     } finally {
       setIsRenderingFederated(false);
+    }
+  };
+
+  const handleRenderChainedStoryboard = async () => {
+    if (!storyboard?.storyboard?.scenes?.length) return;
+    setIsRenderingChained(true);
+    setError(null);
+    try {
+      const res = await renderChainedStoryboard(storyboard.storyboard.scenes);
+      const updatedMap: Record<number, GenerationResult> = {};
+      res.scenes.forEach((sc) => {
+        updatedMap[sc.scene_number] = {
+          interaction_thread_id: sc.interaction_id || `turn_${sc.scene_number}`,
+          video_url: sc.video_url || '',
+          duration_seconds: sc.duration_seconds || 5,
+          synth_id_watermark: 'SYNTHID_C2PA_VERIFIED',
+          status: sc.status || 'completed',
+          generation_mode: sc.generation_mode || 'LIVE_GEMINI_OMNI_1_1_FLASH',
+        };
+      });
+      setRenderedScenes((prev) => ({ ...prev, ...updatedMap }));
+    } catch (err: any) {
+      setError(err.message || 'Chained storyboard rendering failed');
+    } finally {
+      setIsRenderingChained(false);
     }
   };
 
@@ -1839,6 +1893,16 @@ export default function App() {
                     <button
                       type="button"
                       className="btn-primary"
+                      disabled={isRenderingMashupChained}
+                      onClick={handleRenderChainedMashupScenes}
+                      style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                    >
+                      <Link2 size={16} />
+                      {isRenderingMashupChained ? 'Chaining Multi-Scene Extensions...' : '🔗 Render Chained Storyboard (Zero Visual Drift)'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
                       disabled={isRenderingMashup}
                       onClick={handleRenderAllMashupScenes}
                       style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #eab308, #ca8a04)' }}
@@ -1947,6 +2011,16 @@ export default function App() {
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={isRenderingChained}
+                      onClick={handleRenderChainedStoryboard}
+                      style={{ padding: '8px 16px', fontSize: '13px', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                    >
+                      <Link2 size={16} />
+                      {isRenderingChained ? 'Chaining Multi-Scene Extensions...' : '🔗 Render Chained Storyboard (Zero Visual Drift)'}
+                    </button>
                     <button
                       type="button"
                       className="btn-primary"

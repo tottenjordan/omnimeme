@@ -162,6 +162,12 @@ class ConcatenateRequest(BaseModel):
     product_sponsor_callout: str | None = None
 
 
+class ChainedRenderRequest(BaseModel):
+    scenes: list[dict[str, Any]]
+    resolution: str = "720p"
+    mock_mode: bool | None = None
+
+
 
 def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAttachment]:
     return [
@@ -387,6 +393,31 @@ def concatenate_scriptwriting(req: ConcatenateRequest):
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/scriptwriting/render-chained")
+def render_chained_storyboard_endpoint(req: ChainedRenderRequest):
+    if not req.scenes:
+        raise HTTPException(status_code=400, detail="scenes list cannot be empty.")
+    try:
+        is_mock = req.mock_mode if req.mock_mode is not None else False
+        engine = OmniFlashExecutionEngine(mock_mode=is_mock)
+        rendered_scenes = engine.render_chained_storyboard(
+            scenes=req.scenes,
+            resolution=req.resolution,
+            mock_mode=req.mock_mode,
+        )
+        return {
+            "status": "success",
+            "scenes": rendered_scenes,
+            "total_scenes": len(rendered_scenes),
+            "cumulative_duration_seconds": sum(s.get("duration_seconds", 5) for s in rendered_scenes),
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Chained rendering failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
