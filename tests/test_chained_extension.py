@@ -167,3 +167,32 @@ def test_render_chained_endpoint_empty_scenes_error(client):
         json={"scenes": [], "resolution": "720p"},
     )
     assert resp.status_code == 400
+
+
+def test_render_chained_storyboard_error_resilience():
+    engine = OmniFlashExecutionEngine(mock_mode=True)
+
+    scenes = [
+        {"scene_number": 1, "video_config": {"prompt": "Scene 1 ok"}},
+        {"scene_number": 2, "video_config": {"prompt": "Scene 2 fail"}},
+    ]
+
+    call_count = 0
+
+    def mock_generate_video(config, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise RuntimeError("Gemini API connection error")
+        return GenerationResult(
+            interaction_thread_id="turn_1_success",
+            video_url="/static/rendered/scene_1.mp4",
+            duration_seconds=5,
+            status="completed",
+        )
+
+    engine.generate_video = mock_generate_video
+
+    with pytest.raises(RuntimeError, match="Gemini API connection error"):
+        engine.render_chained_storyboard(scenes)
+

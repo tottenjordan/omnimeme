@@ -1888,6 +1888,11 @@ export default function App() {
                       Genre: {mashupStoryboard.storyboard.mashup_genre || mashupGenre} | Tone: {mashupStoryboard.storyboard.parody_tone || parodyTone}
                       {mashupStoryboard.storyboard.product?.name && ` | Product: ${mashupStoryboard.storyboard.product.name}`}
                     </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <span style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        🔗 Visual Continuity Locked via Gemini Omni Flash 1.1 Interactions Memory
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button
@@ -1922,6 +1927,14 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+                {isRenderingMashupChained && (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: '#6ee7b7' }}>
+                    <Link2 size={16} className="spin" color="#10b981" />
+                    <span>
+                      Chaining Continuous Visual Context: {mashupStoryboard.storyboard.scenes.map((s, idx) => `[Scene ${s.scene_number}: ${idx === 0 ? 'Base (0-10s)' : `Chained (+10s)`}]`).join(' ──▶ ')}
+                    </span>
+                  </div>
+                )}
 
                 {mashupMasterFilmUrl && (
                   <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2009,6 +2022,11 @@ export default function App() {
                     <span style={{ fontSize: '12px', color: '#9ca3af' }}>
                       {storyboard.storyboard.scenes.length} Scenes Breakdown | Style: {storyboard.storyboard.style_preference || 'Default'}
                     </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <span style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.4)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        🔗 Visual Continuity Locked via Gemini Omni Flash 1.1 Interactions Memory
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button
@@ -2043,6 +2061,15 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                {isRenderingChained && (
+                  <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: '#6ee7b7' }}>
+                    <Link2 size={16} className="spin" color="#10b981" />
+                    <span>
+                      Chaining Continuous Visual Context: {storyboard.storyboard.scenes.map((s, idx) => `[Scene ${s.scene_number}: ${idx === 0 ? 'Base (0-10s)' : `Chained (+10s)`}]`).join(' ──▶ ')}
+                    </span>
+                  </div>
+                )}
 
                 {masterFilmUrl && (
                   <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
