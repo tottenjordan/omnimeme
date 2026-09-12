@@ -102,6 +102,7 @@ def test_sdk_payload_fix_engine():
 
     with patch("google.genai.Client", return_value=mock_client):
         result = engine.generate_video(config)
+        assert result.status == "completed"
 
         mock_client.interactions.create.assert_called_once()
         _, kwargs = mock_client.interactions.create.call_args
@@ -118,8 +119,16 @@ def test_sdk_payload_fix_engine():
         inputs = kwargs["input"]
         assert len(inputs) == 3
         assert inputs[0] == {"type": "text", "text": "Test animation prompt"}
-        assert inputs[1] == {"type": "image", "gcs_uri": "gs://bucket/frame1.png", "role": "first_frame"}
-        assert inputs[2] == {"type": "image", "gcs_uri": "gs://bucket/frame2.png", "role": "last_frame"}
+        assert inputs[1] == {
+            "type": "image",
+            "gcs_uri": "gs://bucket/frame1.png",
+            "role": "first_frame",
+        }
+        assert inputs[2] == {
+            "type": "image",
+            "gcs_uri": "gs://bucket/frame2.png",
+            "role": "last_frame",
+        }
 
         # Ensure video_config contains resolution
         assert kwargs["video_config"] == {"resolution": "720p"}

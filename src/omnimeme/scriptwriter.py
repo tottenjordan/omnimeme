@@ -6,10 +6,10 @@ import os
 from typing import Any
 
 from google import genai
-from google.genai import types
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
-from omnimeme.agent import OmniDirectorAgent, create_omni_director_agent
-from omnimeme.client import get_platform_client
+from google.genai import types
+
+from omnimeme.agent import create_omni_director_agent
 from omnimeme.tools import generate_video_config
 from omnimeme.vault import CharacterVault
 
@@ -30,7 +30,8 @@ class ScriptwriterAgent:
     ):
         self.name = name
         self.model = model
-        self.client = get_platform_client(project_id, location)
+        self.project_id = project_id
+        self.location = location
 
         if remote_director_card_url:
             self.director_agent = RemoteA2aAgent(
@@ -150,7 +151,12 @@ class ScriptwriterAgent:
         character_vault: CharacterVault | None = None,
     ) -> dict[str, Any]:
         """Generates a structured 4-scene parody mashup storyboard alternating character beats and commercial callouts."""
-        if not character_a_id or not character_b_id or not character_a_id.strip() or not character_b_id.strip():
+        if (
+            not character_a_id
+            or not character_b_id
+            or not character_a_id.strip()
+            or not character_b_id.strip()
+        ):
             raise ValueError("character_a_id and character_b_id are required.")
 
         character_a_id = character_a_id.strip()
@@ -162,7 +168,12 @@ class ScriptwriterAgent:
         char_b = character_vault.get_character(character_b_id) if character_vault else None
 
         if not char_a or not char_b:
-            from omnimeme.vault import MASHUP_PRESET_BUNDLES, CHARACTER_ARCHETYPE_PRESETS, CharacterRole
+            from omnimeme.vault import (
+                CHARACTER_ARCHETYPE_PRESETS,
+                MASHUP_PRESET_BUNDLES,
+                CharacterRole,
+            )
+
             for bundle in MASHUP_PRESET_BUNDLES:
                 ca = bundle.get("character_a", {})
                 cb = bundle.get("character_b", {})
@@ -183,6 +194,7 @@ class ScriptwriterAgent:
 
         if not char_a:
             from omnimeme.vault import CharacterRole
+
             char_a = CharacterRole(
                 role_id=character_a_id,
                 name=character_a_id.replace("_", " ").title(),
@@ -190,6 +202,7 @@ class ScriptwriterAgent:
             )
         if not char_b:
             from omnimeme.vault import CharacterRole
+
             char_b = CharacterRole(
                 role_id=character_b_id,
                 name=character_b_id.replace("_", " ").title(),
@@ -209,7 +222,9 @@ class ScriptwriterAgent:
 
         scenes = []
         for i, s_info in enumerate(scene_definitions, start=1):
-            char_id = s_info.get("character_role_id", char_a.role_id if i % 2 == 1 else char_b.role_id)
+            char_id = s_info.get(
+                "character_role_id", char_a.role_id if i % 2 == 1 else char_b.role_id
+            )
             scene_char = char_a if char_id == char_a.role_id else char_b
 
             v_desc = s_info.get("visual_description", "")
@@ -231,7 +246,9 @@ class ScriptwriterAgent:
                 char_role=scene_char,
             )
 
-            if product_image_url and (i == 3 or "commercial" in title.lower() or "sponsor" in title.lower()):
+            if product_image_url and (
+                i == 3 or "commercial" in title.lower() or "sponsor" in title.lower()
+            ):
                 ref_assets = video_config.get("reference_assets") or []
                 ref_assets.append(
                     {
@@ -299,7 +316,11 @@ class ScriptwriterAgent:
         if api_key:
             try:
                 genai_client = genai.Client(api_key=api_key)
-                product_info = f"Sponsor Product: {product_name} ({product_tagline})" if product_name else "No product tie-in"
+                product_info = (
+                    f"Sponsor Product: {product_name} ({product_tagline})"
+                    if product_name
+                    else "No product tie-in"
+                )
                 prompt = (
                     f"You are an expert comedy video director and parody scriptwriter.\n"
                     f"Create a 4-scene alternating character beat video storyboard for a parody mashup.\n"
@@ -310,7 +331,7 @@ class ScriptwriterAgent:
                     f"{product_info}\n\n"
                     f"Structure exact {scene_count} scenes alternating character beats and a commercial parody beat.\n"
                     f"Return ONLY a raw JSON array containing exactly {scene_count} objects with keys:\n"
-                    f"\"scene_number\", \"title\", \"visual_description\", \"camera_instruction\", \"audio_cue\", \"character_role_id\", \"lower_third_title\"."
+                    f'"scene_number", "title", "visual_description", "camera_instruction", "audio_cue", "character_role_id", "lower_third_title".'
                 )
                 response = genai_client.models.generate_content(
                     model=self.model,
@@ -324,7 +345,9 @@ class ScriptwriterAgent:
                     if isinstance(parsed, list) and len(parsed) == scene_count:
                         return parsed
             except Exception as e:
-                logger.warning(f"Gemini API call ({self.model}) failed for mashup: {e}. Using fallback generator.")
+                logger.warning(
+                    f"Gemini API call ({self.model}) failed for mashup: {e}. Using fallback generator."
+                )
 
         return self._generate_fallback_mashup_scene_breakdown(
             char_a=char_a,
@@ -363,7 +386,10 @@ class ScriptwriterAgent:
                         "camera_instruction": "Wide tracking hero entrance shot with dynamic cinematic lighting.",
                         "audio_cue": f"Signature entrance theme music for {char_a.name} with ambient reverb.",
                         "character_role_id": char_a.role_id,
-                        "lower_third_title": {"name": char_a.name, "role": getattr(char_a, "image_role", "Protagonist") or "Protagonist"},
+                        "lower_third_title": {
+                            "name": char_a.name,
+                            "role": getattr(char_a, "image_role", "Protagonist") or "Protagonist",
+                        },
                     }
                 )
             elif i == 2:
@@ -375,7 +401,10 @@ class ScriptwriterAgent:
                         "camera_instruction": "Over-the-shoulder medium shot cutting rapidly between characters.",
                         "audio_cue": "Tense standoff string music suddenly interrupted by a comical needle scratch.",
                         "character_role_id": char_b.role_id,
-                        "lower_third_title": {"name": char_b.name, "role": getattr(char_b, "image_role", "Rival") or "Rival"},
+                        "lower_third_title": {
+                            "name": char_b.name,
+                            "role": getattr(char_b, "image_role", "Rival") or "Rival",
+                        },
                     }
                 )
             elif i == 3:
@@ -399,7 +428,10 @@ class ScriptwriterAgent:
                         "camera_instruction": "360-degree orbital camera pan with slow-motion visual effects.",
                         "audio_cue": "Epic orchestral mashup soundtrack ending with victorious fanfare and audience applause.",
                         "character_role_id": char_a.role_id,
-                        "lower_third_title": {"name": f"{char_a.name} x {char_b.name}", "role": "Epic Mashup Finale"},
+                        "lower_third_title": {
+                            "name": f"{char_a.name} x {char_b.name}",
+                            "role": "Epic Mashup Finale",
+                        },
                     }
                 )
             else:
@@ -430,9 +462,9 @@ class ScriptwriterAgent:
                     f"You are an expert Hollywood scriptwriter and video storyboard director.\n"
                     f"Transform the following high-level creative concept into a structured multi-scene storyboard breakdown of exactly {scene_count} scenes.\n"
                     f"Style Preference: {style_preference if style_preference else 'Cinematic 4K'}\n\n"
-                    f"Concept:\n\"{concept}\"\n\n"
+                    f'Concept:\n"{concept}"\n\n'
                     f"Return ONLY a raw JSON array containing exactly {scene_count} objects with keys: "
-                    f"\"scene_number\", \"title\", \"visual_description\", \"camera_instruction\", \"audio_cue\"."
+                    f'"scene_number", "title", "visual_description", "camera_instruction", "audio_cue".'
                 )
                 response = genai_client.models.generate_content(
                     model=self.model,
@@ -446,7 +478,9 @@ class ScriptwriterAgent:
                     if isinstance(parsed, list) and len(parsed) == scene_count:
                         return parsed
             except Exception as e:
-                logger.warning(f"Gemini API call ({self.model}) failed or unavailable: {e}. Falling back to dynamic generator.")
+                logger.warning(
+                    f"Gemini API call ({self.model}) failed or unavailable: {e}. Falling back to dynamic generator."
+                )
 
         return [
             self._generate_fallback_scene_definition(
@@ -500,7 +534,7 @@ class ScriptwriterAgent:
         notes = f"{style_preference}. Camera: {camera_instruction}".strip()
 
         if self.director_agent is not None:
-            if hasattr(self.director_agent, "run") and callable(getattr(self.director_agent, "run")):
+            if hasattr(self.director_agent, "run") and callable(self.director_agent.run):
                 try:
                     res = self.director_agent.run(
                         user_prompt=visual_description,
@@ -513,7 +547,9 @@ class ScriptwriterAgent:
                     elif isinstance(res, dict):
                         return res
                 except Exception as e:
-                    logger.warning(f"Delegation to director_agent failed: {e}. Using direct generator.")
+                    logger.warning(
+                        f"Delegation to director_agent failed: {e}. Using direct generator."
+                    )
 
         # Fallback or direct video_config generation helper
         ref_assets = None
@@ -544,4 +580,3 @@ def create_scriptwriter_agent(
         director_agent=director_agent,
         remote_director_card_url=remote_director_card_url,
     )
-

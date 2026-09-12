@@ -2,13 +2,12 @@
 
 from typing import Any
 
-from omnimeme.client import get_platform_client
 from omnimeme.prompts import OMNI_FLASH_DIRECTING_INSTR
 from omnimeme.tools import enhance_video_prompt, generate_video_config
 
 
 class OmniDirectorAgent:
-    """ADK Agent representation for Omni Flash Video Directing using agentplatform.Client."""
+    """ADK Agent representation for Omni Flash Video Directing."""
 
     def __init__(
         self,
@@ -19,7 +18,8 @@ class OmniDirectorAgent:
     ):
         self.name = name
         self.model = model
-        self.client = get_platform_client(project_id, location)
+        self.project_id = project_id
+        self.location = location
         self.instruction = OMNI_FLASH_DIRECTING_INSTR
         self.tools = [enhance_video_prompt, generate_video_config]
 

@@ -30,3 +30,27 @@ def test_character_vault_crud():
     vault.delete_character("char_wizard_01")
     assert vault.get_character("char_wizard_01") is None
     assert len(vault.list_characters()) == 0
+
+
+def test_character_vault_file_persistence(tmp_path):
+    storage_file = str(tmp_path / "test_vault.json")
+    vault1 = CharacterVault(storage_file=storage_file)
+    char = CharacterRole(
+        role_id="char_persisted_01",
+        name="Persisted Warrior",
+        description="A warrior that survives restarts",
+        aesthetic_tags=["persisted"],
+    )
+    vault1.add_character(char)
+
+    # Instantiate new vault pointing to same storage file
+    vault2 = CharacterVault(storage_file=storage_file)
+    loaded_char = vault2.get_character("char_persisted_01")
+    assert loaded_char is not None
+    assert loaded_char.name == "Persisted Warrior"
+    assert loaded_char.aesthetic_tags == ["persisted"]
+
+    # Test delete persists
+    vault2.delete_character("char_persisted_01")
+    vault3 = CharacterVault(storage_file=storage_file)
+    assert vault3.get_character("char_persisted_01") is None

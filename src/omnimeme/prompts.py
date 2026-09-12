@@ -28,4 +28,3 @@ def build_directing_system_prompt(custom_style: str | None = None) -> str:
     if custom_style:
         return f"{OMNI_FLASH_DIRECTING_INSTR}\n\nTarget Aesthetic Preference: {custom_style}"
     return OMNI_FLASH_DIRECTING_INSTR
-

@@ -1,13 +1,12 @@
 """Tests for Parody & Mashup Video Studio engine, vault bundles, FFmpeg overlays, and FastAPI endpoints."""
 
-from unittest.mock import patch, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from omnimeme.scriptwriter import ScriptwriterAgent, create_scriptwriter_agent
 from omnimeme.engine import concatenate_storyboard_videos
+from omnimeme.scriptwriter import ScriptwriterAgent
 from omnimeme.server.app import app
-from omnimeme.vault import MASHUP_PRESET_BUNDLES, CharacterVault, CharacterRole
+from omnimeme.vault import MASHUP_PRESET_BUNDLES
 
 
 @pytest.fixture
@@ -181,4 +180,3 @@ def test_generate_mashup_storyboard_whitespace_validation():
     agent = ScriptwriterAgent()
     with pytest.raises(ValueError, match="character_a_id and character_b_id are required"):
         agent.generate_mashup_storyboard(character_a_id="   ", character_b_id="chef_supreme")
-

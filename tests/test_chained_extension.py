@@ -1,6 +1,5 @@
 """Tests for Chained Multi-Scene Extension Engine (Zero Visual Drift)."""
 
-from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
@@ -96,11 +95,15 @@ def test_render_chained_storyboard_sequential_interactions():
 
     recorded_calls = []
 
-    def mock_generate_video(config, output_filename=None, previous_interaction_id=None, resolution="720p", **kwargs):
-        recorded_calls.append({
-            "prompt": config.get("prompt"),
-            "previous_interaction_id": previous_interaction_id,
-        })
+    def mock_generate_video(
+        config, output_filename=None, previous_interaction_id=None, resolution="720p", **kwargs
+    ):
+        recorded_calls.append(
+            {
+                "prompt": config.get("prompt"),
+                "previous_interaction_id": previous_interaction_id,
+            }
+        )
         turn_num = len(recorded_calls)
         return GenerationResult(
             interaction_thread_id=f"interaction_turn_{turn_num}",
@@ -195,4 +198,3 @@ def test_render_chained_storyboard_error_resilience():
 
     with pytest.raises(RuntimeError, match="Gemini API connection error"):
         engine.render_chained_storyboard(scenes)
-

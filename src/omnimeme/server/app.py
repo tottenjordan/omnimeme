@@ -1,7 +1,7 @@
-from contextlib import asynccontextmanager
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -21,7 +21,6 @@ from omnimeme.turnaround import generate_turnaround_sheet_config
 from omnimeme.ui.freeform_widget import FreeformInput, process_freeform_request
 from omnimeme.ui.guided_experience import GuidedPromptInput, MediaAttachment, process_guided_request
 from omnimeme.vault import CHARACTER_ARCHETYPE_PRESETS, CharacterRole, CharacterVault
-
 
 logger = logging.getLogger("omnimeme.server")
 
@@ -46,7 +45,6 @@ app.mount("/a2a/app", a2a_director_app)
 
 os.makedirs("static/rendered", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 
 global_vault = CharacterVault()
@@ -168,12 +166,10 @@ class ChainedRenderRequest(BaseModel):
     mock_mode: bool | None = None
 
 
-
 def _parse_media_attachments(models: list[MediaAttachmentModel]) -> list[MediaAttachment]:
     return [
         MediaAttachment(uri=m.uri, mime_type=m.mime_type, description=m.description) for m in models
     ]
-
 
 
 @app.get("/api/health")
@@ -184,7 +180,6 @@ def health_check() -> dict[str, str]:
 @app.get("/api/vault/archetypes")
 def get_vault_archetypes():
     return CHARACTER_ARCHETYPE_PRESETS
-
 
 
 @app.get("/api/vault/characters")
@@ -270,9 +265,21 @@ def enhance_guided(req: GuidedApiRequest):
     if req.character_b_role_id:
         char_b = global_vault.get_character(req.character_b_role_id)
         if char_b and char_b.turnaround_sheet_url:
-            ref_images.append(MediaAttachment(uri=char_b.turnaround_sheet_url, mime_type="image/png", description=f"{char_b.name} Turnaround Sheet (@Image2)"))
+            ref_images.append(
+                MediaAttachment(
+                    uri=char_b.turnaround_sheet_url,
+                    mime_type="image/png",
+                    description=f"{char_b.name} Turnaround Sheet (@Image2)",
+                )
+            )
     if req.product and req.product.image_url:
-        ref_images.append(MediaAttachment(uri=req.product.image_url, mime_type="image/png", description=f"Product Reference: {req.product.name}"))
+        ref_images.append(
+            MediaAttachment(
+                uri=req.product.image_url,
+                mime_type="image/png",
+                description=f"Product Reference: {req.product.name}",
+            )
+        )
 
     inp = GuidedPromptInput(
         subject=req.subject,
@@ -309,9 +316,21 @@ def enhance_freeform(req: FreeformApiRequest):
     if req.character_b_role_id:
         char_b = global_vault.get_character(req.character_b_role_id)
         if char_b and char_b.turnaround_sheet_url:
-            ref_images.append(MediaAttachment(uri=char_b.turnaround_sheet_url, mime_type="image/png", description=f"{char_b.name} Turnaround Sheet (@Image2)"))
+            ref_images.append(
+                MediaAttachment(
+                    uri=char_b.turnaround_sheet_url,
+                    mime_type="image/png",
+                    description=f"{char_b.name} Turnaround Sheet (@Image2)",
+                )
+            )
     if req.product and req.product.image_url:
-        ref_images.append(MediaAttachment(uri=req.product.image_url, mime_type="image/png", description=f"Product Reference: {req.product.name}"))
+        ref_images.append(
+            MediaAttachment(
+                uri=req.product.image_url,
+                mime_type="image/png",
+                description=f"Product Reference: {req.product.name}",
+            )
+        )
 
     inp = FreeformInput(
         raw_prompt=req.raw_prompt,
@@ -333,6 +352,7 @@ def enhance_freeform(req: FreeformApiRequest):
 @app.get("/api/vault/mashup-bundles")
 def get_vault_mashup_bundles():
     from omnimeme.vault import MASHUP_PRESET_BUNDLES
+
     return MASHUP_PRESET_BUNDLES
 
 
@@ -354,8 +374,15 @@ def generate_scriptwriting(req: ScriptwritingRequest):
 
 @app.post("/api/scriptwriting/mashup")
 def generate_mashup_scriptwriting(req: MashupRequest):
-    if not req.character_a_id or not req.character_b_id or not req.character_a_id.strip() or not req.character_b_id.strip():
-        raise HTTPException(status_code=400, detail="character_a_id and character_b_id are required.")
+    if (
+        not req.character_a_id
+        or not req.character_b_id
+        or not req.character_a_id.strip()
+        or not req.character_b_id.strip()
+    ):
+        raise HTTPException(
+            status_code=400, detail="character_a_id and character_b_id are required."
+        )
 
     scriptwriter = create_scriptwriter_agent()
     p_name = req.product.name if req.product else None
@@ -391,9 +418,9 @@ def concatenate_scriptwriting(req: ConcatenateRequest):
         )
         return {"status": "success", "master_video_url": master_url}
     except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/scriptwriting/render-chained")
@@ -412,13 +439,15 @@ def render_chained_storyboard_endpoint(req: ChainedRenderRequest):
             "status": "success",
             "scenes": rendered_scenes,
             "total_scenes": len(rendered_scenes),
-            "cumulative_duration_seconds": sum(s.get("duration_seconds", 5) for s in rendered_scenes),
+            "cumulative_duration_seconds": sum(
+                s.get("duration_seconds", 5) for s in rendered_scenes
+            ),
         }
     except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
     except Exception as e:
         logger.error(f"Chained rendering failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/api/guided/stream")
