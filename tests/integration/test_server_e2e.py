@@ -47,6 +47,8 @@ AGENT_CARD_URL = A2A_RPC_URL + ".well-known/agent-card.json"
 
 HEADERS = {"Content-Type": "application/json"}
 
+logger = logging.getLogger(__name__)
+
 
 def log_output(pipe: Any, log_func: Any) -> None:
     """Log the output from the given pipe."""

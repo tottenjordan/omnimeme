@@ -1,6 +1,8 @@
-import os
 import glob
+import os
+
 import pytest
+
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_rendered_test_artifacts():

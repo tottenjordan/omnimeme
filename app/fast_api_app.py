@@ -19,6 +19,7 @@ from collections.abc import AsyncIterator
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 
@@ -27,6 +28,7 @@ from app.app_utils.a2a import attach_a2a_routes
 from app.app_utils.reasoning_engine_adapter import (
     attach_reasoning_engine_routes,
 )
+from omnimeme.server.app import app as omnimeme_app
 
 load_dotenv()
 otel_to_cloud = os.environ.get("GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY", "").lower() in (
@@ -82,9 +84,6 @@ app.description = "API for interacting with the Agent omnimeme"
 # talk to this agent alongside the native adk_api routes.
 attach_reasoning_engine_routes(app)
 
-from fastapi.staticfiles import StaticFiles
-from omnimeme.server.app import app as omnimeme_app
-
 os.makedirs("static/rendered", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -95,8 +94,6 @@ if os.path.exists("frontend/dist"):
 
 
 app.include_router(omnimeme_app.router)
-
-
 
 
 # Main execution

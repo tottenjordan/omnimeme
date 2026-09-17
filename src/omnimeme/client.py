@@ -1,8 +1,8 @@
 """Gemini Enterprise Agent Platform Client Initializer."""
 
-import os
-
 import agentplatform
+
+from omnimeme.config import get_gcp_project, get_gcp_region
 
 
 def get_platform_client(
@@ -10,6 +10,6 @@ def get_platform_client(
     location: str | None = None,
 ) -> agentplatform.Client:
     """Instantiate agentplatform.Client replacing deprecated vertexai.Client."""
-    project = project_id or os.getenv("GOOGLE_CLOUD_PROJECT", "omnimeme-dev")
-    region = location or os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+    project = project_id or get_gcp_project() or "your-gcp-project-id"
+    region = location or get_gcp_region()
     return agentplatform.Client(project=project, location=region)

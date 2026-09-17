@@ -7,12 +7,11 @@ import math
 import os
 import struct
 import subprocess
+import urllib.parse
 import uuid
 import wave
 from dataclasses import dataclass
 from typing import Any, Generator
-import urllib.parse
-
 
 logger = logging.getLogger("omnimeme.engine")
 
@@ -44,7 +43,6 @@ class GenerationResult:
             "error_message": self.error_message,
             "generation_mode": self.generation_mode,
         }
-
 
 
 def _generate_dynamic_audio_wav(
@@ -219,7 +217,12 @@ def parse_guardrail_error_guidance(
 class OmniFlashExecutionEngine:
     """Execution Engine for Gemini Omni Flash Video Generation & Interactions API."""
 
-    def __init__(self, api_key: str | None = None, mock_mode: bool = False, model: str = "gemini-omni-1.1-flash"):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        mock_mode: bool = False,
+        model: str = "gemini-omni-1.1-flash",
+    ):
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.mock_mode = mock_mode
         self.model = model
@@ -270,7 +273,9 @@ class OmniFlashExecutionEngine:
                 if previous_interaction_id:
                     kwargs["previous_interaction_id"] = previous_interaction_id
 
-                logger.info(f"Invoking Gemini Omni Flash Interactions API ({model_name}): {prompt[:60]}...")
+                logger.info(
+                    f"Invoking Gemini Omni Flash Interactions API ({model_name}): {prompt[:60]}..."
+                )
                 interaction = client.interactions.create(**kwargs)
                 thread_id = getattr(interaction, "id", thread_id)
 
@@ -282,7 +287,9 @@ class OmniFlashExecutionEngine:
                     for step in getattr(interaction, "steps", []):
                         if getattr(step, "type", "") == "model_output":
                             for content in getattr(step, "content", []):
-                                if getattr(content, "type", "") == "video" and hasattr(content, "data"):
+                                if getattr(content, "type", "") == "video" and hasattr(
+                                    content, "data"
+                                ):
                                     video_bytes = base64.b64decode(content.data)
                                     break
 
@@ -292,7 +299,9 @@ class OmniFlashExecutionEngine:
                         os.makedirs(dirname, exist_ok=True)
                     with open(rel_path, "wb") as f:
                         f.write(video_bytes)
-                    logger.info(f"Successfully generated native Gemini Omni Flash video: {rel_path}")
+                    logger.info(
+                        f"Successfully generated native Gemini Omni Flash video: {rel_path}"
+                    )
                     return GenerationResult(
                         interaction_thread_id=thread_id,
                         video_url=video_url,
@@ -302,7 +311,9 @@ class OmniFlashExecutionEngine:
                         generation_mode="LIVE_GEMINI_OMNI_1_1_FLASH",
                     )
             except Exception as e:
-                logger.warning(f"Gemini Omni Flash API call failed/unreachable ({e}). Falling back to FFmpeg preview.")
+                logger.warning(
+                    f"Gemini Omni Flash API call failed/unreachable ({e}). Falling back to FFmpeg preview."
+                )
 
         # Fallback to local FFmpeg preview synthesizer
         ensure_rendered_video(video_url, prompt=prompt, duration=duration)
@@ -313,7 +324,9 @@ class OmniFlashExecutionEngine:
             gcs_uri=f"gs://omnimeme-rendered/{fname}",
             duration_seconds=duration,
             status="completed",
-            generation_mode="LIVE_GEMINI_OMNI_1_1_FLASH" if not self.mock_mode else "LOCAL_FFMPEG_PREVIEW",
+            generation_mode="LIVE_GEMINI_OMNI_1_1_FLASH"
+            if not self.mock_mode
+            else "LOCAL_FFMPEG_PREVIEW",
         )
 
     def stream_generate_video(
@@ -359,18 +372,22 @@ class OmniFlashExecutionEngine:
             v_config = scene.get("video_config") or {}
             target_mock = mock_mode if mock_mode is not None else self.mock_mode
 
-            result = self.generate_video(
-                config=v_config,
-                previous_interaction_id=prev_interaction_id,
-                resolution=resolution,
-            ) if target_mock == self.mock_mode else OmniFlashExecutionEngine(
-                api_key=self.api_key,
-                mock_mode=target_mock,
-                model=self.model,
-            ).generate_video(
-                config=v_config,
-                previous_interaction_id=prev_interaction_id,
-                resolution=resolution,
+            result = (
+                self.generate_video(
+                    config=v_config,
+                    previous_interaction_id=prev_interaction_id,
+                    resolution=resolution,
+                )
+                if target_mock == self.mock_mode
+                else OmniFlashExecutionEngine(
+                    api_key=self.api_key,
+                    mock_mode=target_mock,
+                    model=self.model,
+                ).generate_video(
+                    config=v_config,
+                    previous_interaction_id=prev_interaction_id,
+                    resolution=resolution,
+                )
             )
 
             prev_interaction_id = result.interaction_thread_id
@@ -384,7 +401,6 @@ class OmniFlashExecutionEngine:
             rendered_scenes.append(scene_copy)
 
         return rendered_scenes
-
 
 
 def _clean_ffmpeg_text(text: str, max_len: int = 40) -> str:
@@ -415,7 +431,11 @@ def concatenate_storyboard_videos(
         raise ValueError("video_urls list cannot be empty")
 
     if output_filename:
-        fname = output_filename if output_filename.startswith("master_") else f"master_{output_filename}"
+        fname = (
+            output_filename
+            if output_filename.startswith("master_")
+            else f"master_{output_filename}"
+        )
     else:
         fname = f"master_{uuid.uuid4().hex[:8]}.mp4"
 
@@ -447,7 +467,11 @@ def concatenate_storyboard_videos(
     processed_paths = []
 
     for idx, src_path in enumerate(valid_paths):
-        lt = lower_third_titles[idx] if lower_third_titles and idx < len(lower_third_titles) else None
+        lt = (
+            lower_third_titles[idx]
+            if lower_third_titles and idx < len(lower_third_titles)
+            else None
+        )
 
         filters = []
         if product_sponsor_callout:
@@ -507,7 +531,11 @@ def concatenate_storyboard_videos(
             ]
             try:
                 res_ov = subprocess.run(cmd_overlay, capture_output=True, check=False)
-                if res_ov.returncode == 0 and os.path.exists(overlay_path) and os.path.getsize(overlay_path) > 0:
+                if (
+                    res_ov.returncode == 0
+                    and os.path.exists(overlay_path)
+                    and os.path.getsize(overlay_path) > 0
+                ):
                     processed_paths.append(os.path.abspath(overlay_path))
                     temp_files_to_clean.append(overlay_path)
                 else:
@@ -542,9 +570,14 @@ def concatenate_storyboard_videos(
         except FileNotFoundError:
             logger.warning("FFmpeg executable not found. Copying single video file fallback.")
             import shutil
+
             shutil.copyfile(processed_paths[0], out_rel_path)
             return out_url
-        if res.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
+        if (
+            res.returncode != 0
+            or not os.path.exists(out_rel_path)
+            or os.path.getsize(out_rel_path) == 0
+        ):
             cmd_reencode = [
                 "ffmpeg",
                 "-y",
@@ -567,7 +600,11 @@ def concatenate_storyboard_videos(
                 out_rel_path,
             ]
             res_re = subprocess.run(cmd_reencode, capture_output=True, check=False)
-            if res_re.returncode != 0 or not os.path.exists(out_rel_path) or os.path.getsize(out_rel_path) == 0:
+            if (
+                res_re.returncode != 0
+                or not os.path.exists(out_rel_path)
+                or os.path.getsize(out_rel_path) == 0
+            ):
                 raise RuntimeError("FFmpeg video concatenation failed")
     finally:
         for tmp_file in [concat_list_path] + temp_files_to_clean:

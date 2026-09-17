@@ -1,5 +1,7 @@
 """Project-Level Character Vault for OmniMeme."""
 
+import json
+import os
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,11 +38,46 @@ class CharacterRole:
 class CharacterVault:
     """In-memory and file-persisted vault for managing project characters."""
 
-    def __init__(self):
+    def __init__(self, storage_file: str | None = None):
         self._characters: dict[str, CharacterRole] = {}
+        self.storage_file = storage_file or os.getenv("CHARACTER_VAULT_FILE")
+        if self.storage_file and os.path.exists(self.storage_file):
+            self._load_from_file()
+
+    def _load_from_file(self) -> None:
+        try:
+            with open(self.storage_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for item in data:
+                    char = CharacterRole(
+                        role_id=item["role_id"],
+                        name=item["name"],
+                        description=item["description"],
+                        turnaround_sheet_url=item.get("turnaround_sheet_url"),
+                        aesthetic_tags=item.get("aesthetic_tags", []),
+                        voice_style=item.get("voice_style", ""),
+                        wardrobe=item.get("wardrobe", ""),
+                        image_role=item.get("image_role", "Character Reference"),
+                    )
+                    self._characters[char.role_id] = char
+        except Exception:
+            pass
+
+    def _save_to_file(self) -> None:
+        if not self.storage_file:
+            return
+        try:
+            dirname = os.path.dirname(self.storage_file)
+            if dirname:
+                os.makedirs(dirname, exist_ok=True)
+            with open(self.storage_file, "w", encoding="utf-8") as f:
+                json.dump([c.to_dict() for c in self._characters.values()], f, indent=2)
+        except Exception:
+            pass
 
     def add_character(self, character: CharacterRole) -> CharacterRole:
         self._characters[character.role_id] = character
+        self._save_to_file()
         return character
 
     def get_character(self, role_id: str) -> CharacterRole | None:
@@ -52,6 +89,7 @@ class CharacterVault:
     def delete_character(self, role_id: str) -> bool:
         if role_id in self._characters:
             del self._characters[role_id]
+            self._save_to_file()
             return True
         return False
 
@@ -200,5 +238,3 @@ MASHUP_PRESET_BUNDLES: list[dict[str, Any]] = [
         },
     },
 ]
-
-

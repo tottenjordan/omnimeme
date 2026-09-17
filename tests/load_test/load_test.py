@@ -20,23 +20,29 @@ import uuid
 
 from locust import HttpUser, between, task
 
-# Resolve the deployed Agent Runtime from deployment metadata. Agent Engine has
-# no public service URL; it proxies the container's HTTP routes (e.g. /run_sse)
-# under the reasoningEngines ".../api/<route>" passthrough path.
-with open("deployment_metadata.json", encoding="utf-8") as f:
-    remote_agent_runtime_id = json.load(f)["remote_agent_runtime_id"]
+# Resolve the deployed service host from deployment metadata or environment variable.
+BASE_HOST = os.getenv("TARGET_URL", "http://127.0.0.1:8000")
+API_PREFIX = ""
 
-# Format: projects/{project_number}/locations/{location}/reasoningEngines/{id}
-parts = remote_agent_runtime_id.split("/")
-project_number = parts[1]
-location = parts[3]
-engine_id = parts[5]
-
-BASE_HOST = f"https://{location}-aiplatform.googleapis.com"
-API_PREFIX = (
-    f"/reasoningEngines/v1/projects/{project_number}"
-    f"/locations/{location}/reasoningEngines/{engine_id}/api"
-)
+if os.path.exists("deployment_metadata.json"):
+    try:
+        with open("deployment_metadata.json", encoding="utf-8") as f:
+            meta = json.load(f)
+            if "cloud_run_service_url" in meta:
+                BASE_HOST = meta["cloud_run_service_url"]
+                API_PREFIX = ""
+            elif "remote_agent_runtime_id" in meta:
+                parts = meta["remote_agent_runtime_id"].split("/")
+                project_number = parts[1]
+                location = parts[3]
+                engine_id = parts[5]
+                BASE_HOST = f"https://{location}-aiplatform.googleapis.com"
+                API_PREFIX = (
+                    f"/reasoningEngines/v1/projects/{project_number}"
+                    f"/locations/{location}/reasoningEngines/{engine_id}/api"
+                )
+    except Exception:
+        pass
 
 # Configure logging
 logging.basicConfig(

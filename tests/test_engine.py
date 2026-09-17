@@ -78,6 +78,7 @@ def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
     fake_genai = type("FakeGenAI", (), {"Client": lambda self=None, **k: FakeGenAIClient()})()
 
     import omnimeme.engine
+
     monkeypatch.setattr(omnimeme.engine, "genai", fake_genai)
 
     engine = OmniFlashExecutionEngine(mock_mode=False)
@@ -95,6 +96,7 @@ def test_execution_engine_interactions_api_mock(monkeypatch, tmp_path):
 
 def test_concatenate_storyboard_videos_success():
     import os
+
     from omnimeme.engine import concatenate_storyboard_videos, ensure_rendered_video
 
     url1 = "/static/rendered/test_scene_1.mp4"
@@ -112,6 +114,7 @@ def test_concatenate_storyboard_videos_success():
 
 def test_concatenate_storyboard_videos_empty_list():
     import pytest
+
     from omnimeme.engine import concatenate_storyboard_videos
 
     with pytest.raises(ValueError, match="video_urls list cannot be empty"):
@@ -120,6 +123,7 @@ def test_concatenate_storyboard_videos_empty_list():
 
 def test_concatenate_storyboard_videos_full_url():
     import os
+
     from omnimeme.engine import concatenate_storyboard_videos, ensure_rendered_video
 
     url1 = "http://localhost:8000/static/rendered/full_url_scene1.mp4"

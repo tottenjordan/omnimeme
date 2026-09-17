@@ -39,7 +39,11 @@ def sanitize_character_concept(raw_subject: str, theme: str = "cinematic") -> st
             pattern = re.compile(re.escape(name_key), re.IGNORECASE)
 
         styled_descriptor = descriptor
-        if theme and theme.strip().lower() != "cinematic" and theme.strip().lower() not in raw_subject.lower():
+        if (
+            theme
+            and theme.strip().lower() != "cinematic"
+            and theme.strip().lower() not in raw_subject.lower()
+        ):
             styled_descriptor = f"{descriptor} ({theme.strip()} style)"
 
         sanitized = pattern.sub(styled_descriptor, sanitized)
@@ -90,9 +94,13 @@ def enhance_video_prompt(
         preset_text = KEYFRAME_MOTION_PRESETS.get(motion_preset, motion_preset)
         camera_motion = f"35mm lens, {preset_text}"
 
-    dialogue_directive = "No dialogue" if (mute_dialogue or not dialogue_text.strip()) else dialogue_text.strip()
+    dialogue_directive = (
+        "No dialogue" if (mute_dialogue or not dialogue_text.strip()) else dialogue_text.strip()
+    )
     sound_directive = sound_effects.strip() if sound_effects.strip() else "Subtle ambient sound"
-    music_directive = "No background music" if (no_music or not music_score.strip()) else music_score.strip()
+    music_directive = (
+        "No background music" if (no_music or not music_score.strip()) else music_score.strip()
+    )
 
     enhanced = (
         f"{role_header}"

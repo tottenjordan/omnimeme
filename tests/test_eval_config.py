@@ -27,4 +27,3 @@ def test_eval_config_yaml_valid():
     assert "draft_resolution_360p" in case_ids
     assert "keyframe_motion_orbital" in case_ids
     assert "theme_sanitization_celebrity" in case_ids
-
